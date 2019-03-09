@@ -1,0 +1,15 @@
+<annotation>
+	<filename>患者3-术后-后牙-医生.jpg</filename>
+	<path>/home/waha/Desktop/pro_teeth/JPG_TEST/患者3/患者3-术后-后牙-医生.jpg</path>
+	<size>
+		<width>88</width>
+		<height>88</height>
+	</size>
+	<bndbox>
+		<xmin>108</xmin>
+		<ymin>9</ymin>
+		<xmax>196</xmax>
+		<ymax>97</ymax>
+	</bndbox>
+</annotation>
+
