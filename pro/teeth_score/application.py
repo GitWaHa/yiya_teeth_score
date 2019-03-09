@@ -52,7 +52,7 @@ def main():
             teeth.img_show()
 
             # 根据提取的牙齿进行评分
-            # grade.score_all(teeth)
+            grade.score_all(teeth)
 
             key = 0
             while key != 84:
