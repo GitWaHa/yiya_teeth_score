@@ -1,3 +1,6 @@
+#!/usr/bin/python3.6
+# coding=utf-8
+
 import cv2
 import numpy as np
 import copy
@@ -166,6 +169,16 @@ class Teeth:
         self.read_image(img_path)
         self.resize(TEETH_IMAGE_SET_ROW, TEETH_IMAGE_SET_ROW)
 
+        # 调试获取坐标
+        # cv2.imshow("get_roi", self.src_image)
+        # cv2.setMouseCallback('get_roi', self.get_roi, (txt_path, self.img_info.operation_time))
+        # key = 0
+        # while key != 141:
+        #     key = cv2.waitKey(0)
+        #     if key == 27:
+        #         cv2.destroyAllWindows()
+        #         return
+
         self.get_fill_teeth_site(txt_path, self.img_info.operation_time)
         self.extract_all_teeth()
         self.find_fill_teeth(self.site, self.radius)
@@ -173,11 +186,6 @@ class Teeth:
         temp_fill_bin = my_erode_dilate(self.dst_fill_mark, 0, 2, (10, 10))
 
         self.dst_other_mark = self.find_other_teeth(self.dst_all_mark, temp_fill_bin)
-
-        # 调试获取坐标
-        # cv2.imshow("image", self.src_image)
-        # cv2.moveWindow('image', 0, 0)
-        # cv2.setMouseCallback('image', self.get_roi)
 
     # / *根据site.txt文件过得所补牙位置信息 * /
     def get_fill_teeth_site(self, txt_path, time):
@@ -226,8 +234,8 @@ class Teeth:
             PointEnd[1] = PointStart[1] + (PointEnd[0] - PointStart[0])  # 形成正方形
             # 提取ROI
             if PointEnd[0] != PointStart[0] and PointEnd[1] != PointStart[1]:  # 框出了矩形区域,而非点
-                print("row", (PointStart[1] + PointEnd[1])/2)
-                print("col", (PointStart[0] + PointEnd[0])/2)
+                print("row", (PointStart[1] + PointEnd[1])//2)
+                print("col", (PointStart[0] + PointEnd[0])//2)
                 # 获取矩形框左上角以及右下角点坐标
                 PointLU = [0, 0]  # 左上角点
                 PointRD = [0, 0]  # 右下角点
@@ -239,7 +247,30 @@ class Teeth:
                 PointRD[1] = max(PointStart[1], PointEnd[1])
                 # roi宽度
                 roi_width = PointRD[0] - PointLU[0]
-                print("r = %d" % (roi_width/2))
+                print("r = %d" % (roi_width//2))
+                try:
+                    f = open(param[0], 'r')
+                except IOError:
+                    print("缺少必要文件 site.text")
+                    return
+                lines = [',\n', ',\n', ',\n']
+                for i in range(3):
+                    lines[i] = f.readline()
+                f.close()
+                f = open(param[0], 'w')
+                if param[1] == "术前":
+                    lines[0] = str((PointStart[1] + PointEnd[1])//2) + " " + str((PointStart[0] + PointEnd[0])//2)
+                    lines[0] += " " + str(roi_width//2) + ',\n'
+                elif param[1] == "术中":
+                    lines[1] = str((PointStart[1] + PointEnd[1]) // 2) + " " + str((PointStart[0] + PointEnd[0]) // 2)
+                    lines[1] += " " + str(roi_width // 2) + ',\n'
+                elif param[1] == "术后":
+                    lines[2] = str((PointStart[1] + PointEnd[1]) // 2) + " " + str((PointStart[0] + PointEnd[0]) // 2)
+                    lines[2] += " " + str(roi_width // 2) + ',\n'
+                s = ''.join(lines)
+                print(s)
+                f.write(s)
+                f.close()
 
         elif event == cv2.EVENT_MOUSEMOVE and label_flag == 1:  # 左键按下后获取当前坐标, 并更新标注框
             PointEnd[0], PointEnd[1] = x, y  # 记录当前位置
@@ -247,7 +278,7 @@ class Teeth:
             image_copy = copy.deepcopy(self.src_image)
             cv2.rectangle(image_copy, (PointStart[0], PointStart[1]), (PointEnd[0], PointEnd[1]), (0, 255, 0),
                           1)  # 根据x坐标画正方形
-            cv2.imshow('image', image_copy)
+            cv2.imshow('get_roi', image_copy)
 
 
 # / *判断此次运行程序前，照片数目，命名是否正确 * /

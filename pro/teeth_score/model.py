@@ -1,3 +1,6 @@
+#!/usr/bin/python3.6
+#coding=utf-8
+
 import numpy as np
 import os
 import skimage.io as io

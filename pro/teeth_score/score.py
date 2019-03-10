@@ -1,3 +1,6 @@
+#!/usr/bin/python3.6
+# coding=utf-8
+
 import cv2
 import numpy as np
 import filetype
@@ -214,8 +217,8 @@ class Teeth_Grade():
         return 1
 
     def score_bb1(self, gray_img, mark_img, operation_time):
-        # if operation_time == '术前':
-        #     return
+        if operation_time == '术前':
+            return
         if operation_time == '术后':
             self.bb1.grade = 20
             return
@@ -260,11 +263,11 @@ class Teeth_Grade():
         self.bb1.sum()
 
     def score_bb2(self, fill_mark, operation_time):
-        # if operation_time == '术前':
-        #     return
-        # elif operation_time == '术后':
-        #     self.bb2.grade = 20
-        #     return
+        if operation_time == '术前':
+            return
+        elif operation_time == '术后':
+            self.bb2.grade = 20
+            return
 
         img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
                                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -379,13 +382,13 @@ class Teeth_Grade():
         self.bb3.sum()
 
     def score_bb4(self, src_gray_img, fill_mark, operation_time, operation_name):
-        # if operation_name == '门牙':
-        #     self.bb4.grade = 10
-        #     return
-        # elif operation_time == '术中':
-        #     return
-        # elif operation_time == '术前':
-        #     return
+        if operation_name == '门牙':
+            self.bb4.grade = 10
+            return
+        elif operation_time == '术中':
+            return
+        elif operation_time == '术前':
+            return
 
         img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
                                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -439,13 +442,13 @@ class Teeth_Grade():
         self.grade += self.bb1.grade + self.bb2.grade + self.bb3.grade + self.bb4.grade
 
         self.creat_score_txt(teeth_pro.img_info)
-        self.aa1.print()
-        self.aa2.print()
-        self.aa3.print()
-        self.bb1.print()
-        self.bb2.print()
-        self.bb3.print()
-        self.bb4.print()
+        # self.aa1.print()
+        # self.aa2.print()
+        # self.aa3.print()
+        # self.bb1.print()
+        # self.bb2.print()
+        # self.bb3.print()
+        # self.bb4.print()
 
     def creat_score_txt(self, img_info):
         if os.access(os.path.join(img_info.pro_path, 'score.txt'), os.F_OK):

@@ -1,5 +1,5 @@
-# !/usr/bin/env python
-# coding: utf-8
+#!/usr/bin/python3.6
+# coding=utf-8
 #
 # 龋齿识别,针对术中图片
 
