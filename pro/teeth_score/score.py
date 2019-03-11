@@ -98,6 +98,7 @@ class Teeth_Grade():
 
         self.aa1.contains_neighbor = key_elements_score
         self.aa1.sum()
+        return
 
     def score_aa2(self, dst_all_mark, dst_fill_mark, site, operation_time):
         img_row, img_col = dst_all_mark.shape[:2]
@@ -180,6 +181,7 @@ class Teeth_Grade():
                 self.aa2.shooting_angle = angle_scores
 
         self.aa2.sum()
+        return
 
     def score_aa3(self, img_path):
         # 获取文件类型
@@ -261,6 +263,7 @@ class Teeth_Grade():
         self.bb1.black_depth = black_level_score
         self.bb1.black_size = black_num_score
         self.bb1.sum()
+        return
 
     def score_bb2(self, fill_mark, operation_time):
         if operation_time == '术前':
@@ -293,6 +296,7 @@ class Teeth_Grade():
             self.bb2.edge_shape = 10 - my_limit(len(contours) - 4, 0, 10)
             self.bb2.black_size = 5
         self.bb2.sum()
+        return
 
     def score_bb3(self, src_image, fill_mark, other_mark, operation_time):
         if operation_time == '术前':
@@ -380,6 +384,7 @@ class Teeth_Grade():
         self.bb3.v_var = my_limit(6*(1-self.bb3.AVR_K)-(abs(fill_v_var - other_v_var)/self.bb3.MAX_VAR_DIFF_V)*6*(1-self.bb3.AVR_K), 0, 6*(1-self.bb3.AVR_K))
         # print(abs(fill_h_var - other_h_var))
         self.bb3.sum()
+        return
 
     def score_bb4(self, src_gray_img, fill_mark, operation_time, operation_name):
         if operation_name == '门牙':
@@ -423,6 +428,7 @@ class Teeth_Grade():
 
             self.bb4.gap = texture_scores
         self.bb4.sum()
+        return
 
     def score_all(self, teeth_pro):
         self.clear()
@@ -449,6 +455,7 @@ class Teeth_Grade():
         # self.bb2.print()
         # self.bb3.print()
         # self.bb4.print()
+        return
 
     def creat_score_txt(self, img_info):
         if os.access(os.path.join(img_info.pro_path, 'score.txt'), os.F_OK):
@@ -469,3 +476,4 @@ class Teeth_Grade():
             f.write(str(self.bb1.grade) + "-" + str(self.bb2.grade) + "-" + str(self.bb3.grade) + "-")
             f.write(str(self.bb4.grade) + "-" + str(self.grade))
         f.close()
+        return

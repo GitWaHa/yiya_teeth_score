@@ -32,6 +32,9 @@ class Img_info:
         self.img_type = doctor_name_str[1]
         self.pro_path = pro_path
 
+        return
+
+
     def print_info(self):
         print("患者姓名：", self.patient_name)
         print("手术时间：", self.operation_time)
@@ -57,7 +60,9 @@ class Teeth:
 
     # / *读取照片 * /
     def read_image(self, image_path):
-        self.src_image = cv2.imread(image_path)
+        src_image = cv2.imread(image_path)
+
+        return src_image
 
     # / *调整图片大小 * /
     def resize(self, set_rows, set_cols):
@@ -75,6 +80,7 @@ class Teeth:
         self.dst_all_mark = np.zeros(self.src_image.shape[:2], np.uint8)
         self.dst_fill_mark = np.zeros(self.src_image.shape[:2], np.uint8)
         self.dst_other_mark = np.zeros(self.src_image.shape[:2], np.uint8)
+        return
 
     # / * hsv过滤图片到bin * /
     def filter_to_bin(self):
@@ -99,6 +105,7 @@ class Teeth:
                     else:
                         self.dst_all_mark[r, c] = 0
         self.dst_all_mark = my_fill_hole(self.dst_all_mark)
+        return
 
     # / *将二值化图映射到原图 * /
     def bin_to_rgb(self, bin_img):
@@ -129,6 +136,7 @@ class Teeth:
 
         # 将roi图转换到全图
         self.dst_fill_mark[min_row:max_row, min_col:max_col] = mark_bin
+        return
 
     # / *将全部牙齿与单个患牙相减，得到除患牙外的其他牙齿 * /
     def find_other_teeth(self, all_mark, fill_mark):
@@ -159,6 +167,7 @@ class Teeth:
             mark_filted = np.zeros(self.dst_all_mark.shape[0:2], dtype=np.uint8)
             cv2.drawContours(mark_filted, [maxcnt], -1, 255, -1)
             self.dst_all_mark = mark_filted
+        return
 
     # / *提取所有需要的牙齿，包括单个患牙，全部牙齿，其他牙齿 * /
     def extract_all(self, current_path, img_name):
@@ -166,7 +175,7 @@ class Teeth:
         txt_path = os.path.join(current_path, "site.txt")
 
         self.clear()
-        self.read_image(img_path)
+        self.src_image = self.read_image(img_path)
         self.resize(TEETH_IMAGE_SET_ROW, TEETH_IMAGE_SET_ROW)
 
         # 调试获取坐标
@@ -186,6 +195,7 @@ class Teeth:
         temp_fill_bin = my_erode_dilate(self.dst_fill_mark, 0, 2, (10, 10))
 
         self.dst_other_mark = self.find_other_teeth(self.dst_all_mark, temp_fill_bin)
+        return
 
     # / *根据site.txt文件过得所补牙位置信息 * /
     def get_fill_teeth_site(self, txt_path, time):
@@ -211,6 +221,7 @@ class Teeth:
             self.radius = int(str_temp[2])
 
         f.close()
+        return
 
     # / *展示最终结果照片 * /
     def img_show(self):
@@ -221,6 +232,7 @@ class Teeth:
         cv2.imshow("fill_teeth", fill_teeth)
         cv2.imshow("all_teeth", all_teeth)
         cv2.imshow("other_teeth", other_teeth)
+        return
 
     # / * 获得所补牙矩形框的位置信息，调试时使用 * /
     def get_roi(self, event, x, y, flags, param):
@@ -279,6 +291,7 @@ class Teeth:
             cv2.rectangle(image_copy, (PointStart[0], PointStart[1]), (PointEnd[0], PointEnd[1]), (0, 255, 0),
                           1)  # 根据x坐标画正方形
             cv2.imshow('get_roi', image_copy)
+        return
 
 
 # / *判断此次运行程序前，照片数目，命名是否正确 * /
@@ -408,39 +421,38 @@ def my_erode_dilate(bin_image, erode_num, dilate_num, size):
 
     return bin_image
 
-    # def find_fill_teeth(self, site, radius):
-    #     min_row = int(my_limit(site[0] - radius * 3, 0, self.src_image.shape[0]))
-    #     max_row = int(my_limit(site[0] + radius * 3, 0, self.src_image.shape[0]))
-    #     min_col = int(my_limit(site[1] - radius * 3, 0, self.src_image.shape[1]))
-    #     max_col = int(my_limit(site[1] + radius * 3, 0, self.src_image.shape[1]))
-    #
-    #     # fill_row = max_row - min_row
-    #     # fill_col = max_col - min_col
-    #
-    #     self.dst_fill_image = copy.deepcopy(self.src_image)
-    #     sure_bg = np.zeros((self.src_image.shape[0], self.src_image.shape[1]), np.uint8)
-    #     for r in range(min_row, max_row):  # 10 155
-    #         for c in range(min_col, max_col):  # 70 205
-    #             sure_bg[r, c] = 255
-    #
-    #     sure_fg = np.zeros((self.src_image.shape[0], self.src_image.shape[1]), np.uint8)
-    #     for r in range(site[0]-radius, site[0]+radius):
-    #         for c in range(site[1]-radius, site[1]+radius):
-    #             sure_fg[r, c] = 255
-    #     # cv2.imshow("sure_fg", sure_fg)
-    #
-    #     # 未知的区域
-    #     unknow = cv2.subtract(sure_bg, sure_fg)
-    #     # cv2.imshow("unknow", unknow)
-    #
-    #     # 标记
-    #     ret, markers = cv2.connectedComponents(sure_bg)  # 将确定的背景标记为0,其他为非零整数
-    #     markers = markers + 1  # 将确定的背景记为1
-    #     markers[unknow == 255] = 0  # 将确未知区域标记为0
-    #
-    #     markers = cv2.watershed(self.dst_fill_image, markers)
-    #
-    #     for r in range(0, self.src_image.shape[0]):
-    #         for c in range(0, self.src_image.shape[1]):
-    #             if markers[r, c] != 2:
-    #                 self.dst_fill_image[r, c] = [0, 0, 0]
+
+        # 标记分水岭算法提取单个所补牙
+    # min_row = int(my_limit(site[0] - radius, 0, self.src_image.shape[0]))
+    # max_row = int(my_limit(site[0] + radius, 0, self.src_image.shape[0]))
+    # min_col = int(my_limit(site[1] - radius, 0, self.src_image.shape[1]))
+    # max_col = int(my_limit(site[1] + radius, 0, self.src_image.shape[1]))
+
+    # self.dst_fill_image = copy.deepcopy(self.src_image)
+    # sure_bg = np.zeros((self.src_image.shape[0], self.src_image.shape[1]), np.uint8)
+    # for r in range(min_row, max_row):  # 10 155
+    #     for c in range(min_col, max_col):  # 70 205
+    #         sure_bg[r, c] = 255
+
+    # sure_fg = np.zeros((self.src_image.shape[0], self.src_image.shape[1]), np.uint8)
+    # for r in range(site[0]-radius//2, site[0]+radius//2):
+    #     for c in range(site[1]-radius//2, site[1]+radius//2):
+    #         sure_fg[r, c] = 255
+    # # cv2.imshow("sure_fg", sure_fg)
+
+    # # 未知的区域
+    # unknow = cv2.subtract(sure_bg, sure_fg)
+    # # cv2.imshow("unknow", unknow)
+
+    # # 标记
+    # ret, markers = cv2.connectedComponents(sure_bg)  # 将确定的背景标记为0,其他为非零整数
+    # markers = markers + 1  # 将确定的背景记为1
+    # markers[unknow == 255] = 0  # 将确未知区域标记为0
+
+    # markers = cv2.watershed(self.src_image, markers)
+
+    # for r in range(0, self.src_image.shape[0]):
+    #     for c in range(0, self.src_image.shape[1]):
+    #         if markers[r, c] == 2:
+    #             self.dst_fill_mark[r, c] = 255
+    # return
