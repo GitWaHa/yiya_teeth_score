@@ -20,11 +20,10 @@ def image_proc(img, target_size = (256,256)):
     img = np.reshape(img, (1,)+img.shape)
     return img
 
-
+model = unet()
+model.load_weights("unet_membrane.hdf5")
+print("unet模型已加载")
 def unet_extract_fillteeth(roi_image):
-    model = unet()
-    model.load_weights("unet_membrane.hdf5")
-
     # 获得网络的输入图片
     pre_image = image_proc(roi_image)
     # 调用模型进行分割
