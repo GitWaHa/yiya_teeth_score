@@ -10,6 +10,12 @@ AA1（照片关键要素：10分）：
 '''
 class Indicators_AA1():   # （10分）
     def __init__(self):
+        self.AREA_K = 1.0                    # 面积得分*此系数 对包含相邻牙齿得分进行扣分
+        self.THR_HEIGHT = 0.25               # 大于 ROI*THR_HEIGHT 判断有相邻牙齿
+        self.THR_WIDTH = 0.5                 # 大于 ROI*THR_WIDTH 判断相邻牙齿完整
+        self.CONTAINS_NEIGHBOR_SCORE = 7     # 包含相邻牙齿总分数
+        self.UNDEFINED_SCORE = 3                   # 未定义三分
+
         self.neighbor_num = 0                # 具有相邻牙齿的数目
         self.contains_neighbor = 0.0         # 患牙是否含有相邻牙齿得分（7分）
         self.undefined = 0.0                 # 未定义（3分）
@@ -43,10 +49,28 @@ AA2（照片构图合理：10分）：
 '''
 class Indicators_AA2():
     def __init__(self):
+        self.CENTER_BIAS_SCORE_FIRST = 6        # 所补牙中心点与图片中心偏差 总分（术前6分，其他4分）
+        self.CENTER_BIAS_SCORE_OTHER = 4
+        self.CENTER_BIAS_SUBTRACT_FIRST = 1.5   # 所补牙中心点与图片中心偏差 扣分值 （术前1.5分，其他1分）
+        self.CENTER_BIAS_SUBTRACT_OTHER = 1
+        self.CENTER_BIAS_SUBTRACT_RATIO = 0.05  # 所补牙中心点与图片中心偏差 每此比例扣一次分
+        self.CENTER_BIAS_SUBTRACT_START = 0.1   # 所补牙中心点与图片中心偏差 大于此比例开始扣分
+
+        self.AREA_RATIO_SCORE = 4                   # 所补牙与周边牙齿面积所占比例 总分
+        self.AREA_RATIO_SUBTRACT_START_MAX = 0.7    # 所补牙与周边牙齿面积所占比例 大于此比例开始扣分
+        self.AREA_RATIO_SUBTRACT_START_MIN = 0.4    # 所补牙与周边牙齿面积所占比例 小于此比例开始扣分
+        self.AREA_RATIO_SUBTRACT_RATIO = 0.05       # 所补牙与周边牙齿面积所占比例 每此比例扣一次分
+        self.AREA_RATIO_SUBTRACT = 1                # 所补牙与周边牙齿面积所占比例 扣分值
+
+        self.SHOOTING_ANGLE_SCORE_FIRST = 0         # 术后术中拍摄角度与术前的一致性 总分 （术前0分，其他2分）
+        self.SHOOTING_ANGLE_SCORE_OTHER = 2
+        self.SHOOTING_ANGLE_SUBTRACT_ANGLE = 30     # 术后术中拍摄角度与术前的一致性 每此角度扣一次分
+        self.SHOOTING_ANGLE_SUBTRACT = 1            # 术后术中拍摄角度与术前的一致性 扣分值
+
         self.first_angle = 0
-        self.center_bias = 0.0      # 所补牙中心点与图片中心偏差得分（术前6分，其他4分）
-        self.area_ratio = 0.0       # 所补牙与周边牙齿面积所占比例（4分）
-        self.shooting_angle = 0.0   # 术后术中拍摄角度与术前的一致性（术前0分，其他2分）
+        self.center_bias = 0.0      # 所补牙中心点与图片中心偏差得分
+        self.area_ratio = 0.0       # 所补牙与周边牙齿面积所占比例
+        self.shooting_angle = 0.0   # 术后术中拍摄角度与术前的一致性
         self.grade = 0
 
     def clear(self):
@@ -75,7 +99,17 @@ AA3（照片清晰度：10分）：
 '''
 class Indicators_AA3():   # 指标
     def __init__(self):
-        self.MIN_RESOLUTION = 1366*768
+        
+        self.IMG_TYPE_SCORE = 4
+
+        self.IMG_RATIO_SCORE = 4
+        self.IMG_RATIO_STD = 16 / 9 
+        self.IMG_RATIO_ERROR = 0.03     # 比例大于此误差零分
+
+        self.IMG_RESOLUTION_SCORE = 4
+        self.IMG_RESOLUTION_SUBTRACT_START = 1366*768   # 分辨率 小于此值开始扣分
+        self.IMG_RESOLUTION_SUBTRACT = 1                # 分辨率 扣分值
+        self.IMG_RESOLUTION_SUBTRACT_SIZE = 100000      # 分辨率 每此值扣一次分
 
         self.img_type = 0.0         # 图片格式
         self.img_ratio = 0.0        # 图片比例
@@ -110,10 +144,18 @@ BB1（龋坏清干净否，针对术中20分）：
 '''
 class Indicators_BB1():   # （10分）
     def __init__(self):
-        self.THR_BLACK_DEPTH = 220
-        self.THR_BLACK_SIZE = 220
-        self.black_depth = 0.0                # 黑色深浅（10分）
-        self.black_size = 0.0                 # 黑色大小（10分）
+        self.THR_GRAY = 130
+
+        self.BLACK_DEPTH_SCORE = 10             # 黑色深浅 分数
+        self.BLACK_DEPTH_SUBTRACT = 1           # 黑色深浅 扣分值
+        self.BLACK_DEPTH_SUBTRACT_VALUE = 10    # 黑色深浅 每此值扣一次分
+
+        self.BLACK_SIZE_SCORE = 10              # 黑色大小 分数
+        self.BLACK_SIZE_SUBTRACT = 1            # 黑色大小 扣分值
+        self.BLACK_SIZE_SUBTRACT_VALUE = 50     # 黑色大小 每此值扣一次分
+
+        self.black_depth = 0.0                # 黑色深浅
+        self.black_size = 0.0                 # 黑色大小
         self.grade = 0
 
     def clear(self):
@@ -177,6 +219,7 @@ class Indicators_BB3():   # 指标
         self.MAX_VAR_DIFF_H = 3000
         self.MAX_VAR_DIFF_S = 3000
         self.MAX_VAR_DIFF_V = 3000
+
         self.h_avr = 0.0    # 色调均值
         self.s_avr = 0.0
         self.v_avr = 0.0
@@ -213,7 +256,11 @@ BB4（有无牙齿尖窝形态，10分，只限于两侧后牙，上下左右各
 '''
 class Indicators_BB4():
     def __init__(self):
-        self.THR_GAP_NUM = 350
+        self.GAP_SCORE = 10
+        self.GAP_SUBTRACT = 1.5
+        self.GAP_SUBTRACT_START = 0.7
+        self.GAP_SUBTRACT_RATIO = 0.1
+
         self.gap = 0.0    # 沟壑纹路得分
         self.grade = 0
 

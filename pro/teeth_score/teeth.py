@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import copy
 import os
+import time
 
 from unet_extract import *
 
@@ -60,9 +61,9 @@ class Teeth:
 
     # / *读取照片 * /
     def read_image(self, image_path):
-        src_image = cv2.imread(image_path)
+        self.src_image = cv2.imread(image_path)
 
-        return src_image
+        return 
 
     # / *调整图片大小 * /
     def resize(self, set_rows, set_cols):
@@ -175,7 +176,7 @@ class Teeth:
         txt_path = os.path.join(current_path, "site.txt")
 
         self.clear()
-        self.src_image = self.read_image(img_path)
+        self.read_image(img_path)
         self.resize(TEETH_IMAGE_SET_ROW, TEETH_IMAGE_SET_ROW)
 
         # 调试获取坐标
@@ -188,13 +189,20 @@ class Teeth:
         #         cv2.destroyAllWindows()
         #         return
 
+        start = time.time()
         self.get_fill_teeth_site(txt_path, self.img_info.operation_time)
         self.extract_all_teeth()
+        run_time = time.time() - start
+        print("所有牙齿 Time used:", run_time, '\n')
+
+        start = time.time()
         self.find_fill_teeth(self.site, self.radius)
+        run_time = time.time() - start
+        print("单个牙齿 Time used:", run_time, '\n')
 
         temp_fill_bin = my_erode_dilate(self.dst_fill_mark, 0, 2, (10, 10))
-
         self.dst_other_mark = self.find_other_teeth(self.dst_all_mark, temp_fill_bin)
+
         return
 
     # / *根据site.txt文件过得所补牙位置信息 * /
