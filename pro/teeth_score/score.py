@@ -99,7 +99,7 @@ class Teeth_Grade():
         self.aa1.contains_neighbor = key_elements_score
         self.aa1.undefined = 3          # 直接给3分
         self.aa1.sum()
-        return
+        return 1
 
     def score_aa2(self, dst_all_mark, dst_fill_mark, site, operation_time):
         img_row, img_col = dst_all_mark.shape[:2]
@@ -181,8 +181,11 @@ class Teeth_Grade():
                                                   (dif_angle//self.aa2.SHOOTING_ANGLE_SUBTRACT_ANGLE)*self.aa2.SHOOTING_ANGLE_SUBTRACT,
                                                   0, self.aa2.SHOOTING_ANGLE_SCORE_OTHER)  # 按比例扣分
 
+        if self.aa2.area_ratio == 0:
+            return 0
+
         self.aa2.sum()
-        return
+        return 1
 
     def score_aa3(self, img_path):
         # 获取文件类型
@@ -442,8 +445,11 @@ class Teeth_Grade():
         self.clear()
 
         self.score_aa1(teeth_pro.dst_all_mark, teeth_pro.site, teeth_pro.radius)
-        self.score_aa2(teeth_pro.dst_all_mark, teeth_pro.dst_fill_mark, teeth_pro.site,
-                       teeth_pro.img_info.operation_time)       
+        is_ok = self.score_aa2(teeth_pro.dst_all_mark, teeth_pro.dst_fill_mark, teeth_pro.site,
+                               teeth_pro.img_info.operation_time)       
+        if is_ok == 0:
+            print("！！！！！！！牙齿面积不符合要求直接退出！！！！！！！")
+            return 0
         self.score_bb1(teeth_pro.src_gray_image, teeth_pro.dst_fill_mark,
                        teeth_pro.img_info.operation_time)
         self.score_bb2(teeth_pro.dst_fill_mark, teeth_pro.img_info.operation_time)
@@ -463,7 +469,7 @@ class Teeth_Grade():
         self.bb2.print()
         self.bb3.print()
         self.bb4.print()
-        return
+        return 1
 
     def creat_score_txt(self, img_info):
         if os.access(os.path.join(img_info.pro_path, 'score.txt'), os.F_OK):
