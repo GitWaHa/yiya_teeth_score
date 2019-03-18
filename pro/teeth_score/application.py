@@ -48,6 +48,8 @@ def main():
             img_path = os.path.join(current_path, img_names[j])
             print(img_path)
 
+            teeth.clear()
+            grade.clear()
             if grade.score_aa3(img_path) == 0:
                 print("照片格式未达到要求，不予评分")
                 break
@@ -55,7 +57,7 @@ def main():
             start = time.time()
             # 提取整个牙齿、按个所补牙及剩余牙齿
             teeth.extract_all(current_path, img_names[j])
-            teeth.img_show()
+            # teeth.img_show()
             elapsed = (time.time() - start)
             print("提取牙齿Time used:", elapsed, '\n')
 
@@ -65,18 +67,21 @@ def main():
             elapsed = (time.time() - start)
             print("评分Time used:", elapsed, '\n')
 
-            key = 0
-            while key != 84:
-                key = cv.waitKey(0)
+            # key = 0
+            # while key != 84:
+            #     key = cv.waitKey(0)
             
-                if key == 27:
-                    cv.destroyAllWindows()
-                    return
+            #     if key == 27:
+            #         cv.destroyAllWindows()
+            #         return
         time_order = 0
 
 
 if __name__ == '__main__':
+    start = time.time()
     main()
+    run_time = time.time() - start
+    print("评分Time used:", run_time, '\n')
     print("end of main")
 
 

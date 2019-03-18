@@ -6,7 +6,7 @@ import numpy as np
 import filetype
 import math
 import os
-from teeth import my_limit
+from teeth import my_limit,my_erode_dilate
 from indicators import *
 
 
@@ -26,11 +26,12 @@ class Teeth_Grade():
         self.aa2.clear()
         self.aa3.clear()
         self.bb1.clear()
+        self.bb2.clear()
         self.bb3.clear()
         self.bb4.clear()
         self.grade = 0
 
-    def score_aa1(self, dst_all_mark, site, radius):
+    def score_aa1(self, dst_all_mark, dst_fill_mark, site, radius):
         key_elements_score = self.aa1.CONTAINS_NEIGHBOR_SCORE
         self.aa1.neighbor_num = 0
 
@@ -45,23 +46,26 @@ class Teeth_Grade():
         # 区域可视化
         # roi = dst_all_mark[min_row:max_row, min_col:max_col]
         # cv2.imshow("aa1_roi", roi)
+        img, contours, hierarchy = cv2.findContours(dst_fill_mark.copy(),
+                                                    cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
+            col, row, w, h = cv2.boundingRect(maxcnt)
 
         roi_height = max_row - min_row
         roi_width = max_col - min_col
 
         # 统计患牙坐标周围第一列和最后一列白点数
-        left_tooth_point_num = 0
-        right_tooth_point_num = 0
-        for r in range(src_row):
-            if dst_all_mark[r][min_col] == 255:
-                left_tooth_point_num += 1
-            if dst_all_mark[r][max_col-1] == 255:
-                right_tooth_point_num += 1
+        left_tooth_point_num = np.sum(dst_all_mark[0:src_row, min_col] == 255)
+        right_tooth_point_num = np.sum(dst_all_mark[0:src_row, max_col-1] == 255)
 
         # 参照牙存在情况:1-有牙 2-不完整 3-最里侧
         # 认为一侧白点超过一定数量,并且原始图像感兴趣区域左侧/右侧还有较大空间,则这一侧有牙
         if left_tooth_point_num > roi_height * self.aa1.THR_HEIGHT:
-            if min_col > roi_width * self.aa1.THR_WIDTH:
+            if col <= 10:
+                left_tooth_status = 3
+                print('AA1[INFO] 左侧无牙')
+            elif min_col > roi_width * 0.7 * self.aa1.THR_WIDTH:
                 left_tooth_status = 1
                 self.aa1.neighbor_num += 1
                 print('AA1[INFO] 左侧有牙')
@@ -74,7 +78,10 @@ class Teeth_Grade():
             print('AA1[INFO] 左侧无牙')
 
         if right_tooth_point_num > roi_height * self.aa1.THR_HEIGHT:
-            if src_col - max_col > roi_width * self.aa1.THR_WIDTH:
+            if (col + w) >= (src_col - 10):
+                right_tooth_status = 3
+                print('AA1[INFO] 右侧无牙')
+            elif src_col - max_col > roi_width * 0.7 * self.aa1.THR_WIDTH:
                 right_tooth_status = 1
                 self.aa1.neighbor_num += 1
                 print('AA1[INFO] 右侧有牙')
@@ -181,7 +188,7 @@ class Teeth_Grade():
                                                   (dif_angle//self.aa2.SHOOTING_ANGLE_SUBTRACT_ANGLE)*self.aa2.SHOOTING_ANGLE_SUBTRACT,
                                                   0, self.aa2.SHOOTING_ANGLE_SCORE_OTHER)  # 按比例扣分
 
-        if self.aa2.area_ratio == 0:
+        if area_ratio < self.aa2.AREA_RATIO_MIN:
             return 0
 
         self.aa2.sum()
@@ -224,8 +231,8 @@ class Teeth_Grade():
         return 1
 
     def score_bb1(self, gray_img, mark_img, operation_time):
-        if operation_time == '术前':
-            return
+        # if operation_time == '术前':
+        #     return
         if operation_time == '术后':
             self.bb1.grade = self.bb1.BLACK_DEPTH_SCORE + self.bb1.BLACK_SIZE_SCORE
             return
@@ -238,17 +245,16 @@ class Teeth_Grade():
         (height, width) = gray_img.shape[0:2]
         element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
         mark_img = cv2.erode(mark_img, element)
-        # 黑色显示模版
-        black_point_show = np.zeros((height, width), dtype=np.uint8)
-        for r in range(height):
-            for c in range(width):
-                # 分割后的牙齿区域中灰度值小于阈值的像素
-                if gray_img[r][c] < caries_point_thresh and mark_img[r][c] == 255:
-                    black_point_show[r][c] = 255
-                    caries_point_num += 1
-                    if gray_img[r][c] < min_gray_value:  # 获取最低灰度值
-                        min_gray_value = gray_img[r][c]
+
+        # 计算黑点数量
+        caries_point_num = np.sum(gray_img[mark_img == 255] < caries_point_thresh)
+
+        # 计算最下灰度值
+        min_gray_value = np.min(gray_img[mark_img == 255])
+
         # 可视化龋齿黑点
+        # black_point_show = np.zeros((height, width), dtype=np.uint8)
+        # black_point_show[(mark_img == 255) & (gray_img < caries_point_thresh)] = 255
         # cv2.imshow('black_point_show', black_point_show)
 
         # 根据黑点数量计算黑色大小得分
@@ -261,7 +267,7 @@ class Teeth_Grade():
 
         # 根据最低灰度值计算黑色深浅得分
         print('BB1[INFO] 最小灰度值', min_gray_value)
-        if min_gray_value < 255:
+        if min_gray_value < caries_point_thresh:
             black_level_score -= ((caries_point_thresh - min_gray_value) // self.bb1.BLACK_DEPTH_SUBTRACT_VALUE) \
                                    * self.bb1.BLACK_DEPTH_SUBTRACT  # 每低于阈值灰度值扣一分
             if black_level_score <= 0:
@@ -313,83 +319,37 @@ class Teeth_Grade():
 
         hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
         img_rows, img_cols = hsv_image.shape[:2]
+        H, S, V = cv2.split(hsv_image)
 
-        fill_count_h = [0 for x in range(256)]
-        fill_count_s = [0 for x in range(256)]
-        fill_count_v = [0 for x in range(256)]
-        fill_count_hsv = 0
-        fill_sum_h = 0
-        fill_sum_s = 0
-        fill_sum_v = 0
-        other_count_h = [0 for x in range(256)]
-        other_count_s = [0 for x in range(256)]
-        other_count_v = [0 for x in range(256)]
-        other_count_hsv = 0
-        other_sum_h = 0
-        other_sum_s = 0
-        other_sum_v = 0
+        # for r in range(0, img_rows):
+        #     for c in range(0, img_cols):
+        #         if fill_mark[r, c] != 0:
+        #             if hsv_image[r, c][0] < 16:
+        #                 hsv_image[r, c] = (0, 0, 0)
+        #                 src_image[r, c] = (0, 0, 0)
+        #         else:
+        #             hsv_image[r, c] = (0, 0, 0)
+        #             src_image[r, c] = (0, 0, 0)
+        # src_image = my_erode_dilate(src_image, 4, 4, (5, 5))
+        # cv2.imshow("hsv", hsv_image)
+        # cv2.imshow("src", src_image)
 
-        for r in range(0, img_rows):
-            for c in range(0, img_cols):
-                if fill_mark[r, c] != 0:
-                    fill_count_hsv += 1
-                    fill_count_h[hsv_image[r, c][0]] += 1
-                    fill_count_s[hsv_image[r, c][1]] += 1
-                    fill_count_v[hsv_image[r, c][2]] += 1
-                    fill_sum_h += hsv_image[r, c][0]
-                    fill_sum_s += hsv_image[r, c][1]
-                    fill_sum_v += hsv_image[r, c][2]
-                if other_mark[r, c] != 0:
-                    other_count_hsv += 1
-                    other_count_h[hsv_image[r, c][0]] += 1
-                    other_count_s[hsv_image[r, c][1]] += 1
-                    other_count_v[hsv_image[r, c][2]] += 1
-                    other_sum_h += hsv_image[r, c][0]
-                    other_sum_s += hsv_image[r, c][1]
-                    other_sum_v += hsv_image[r, c][2]
-
-        # 计算均值
-        fill_h_avr = fill_sum_h / fill_count_hsv
-        fill_s_avr = fill_sum_s / fill_count_hsv
-        fill_v_avr = fill_sum_v / fill_count_hsv
-        other_h_avr = other_sum_h / other_count_hsv
-        other_s_avr = other_sum_s / other_count_hsv
-        other_v_avr = other_sum_v / other_count_hsv
-
-        # 计算方差
-        fill_h_var = 0
-        fill_s_var = 0
-        fill_v_var = 0
-        other_h_var = 0
-        other_s_var = 0
-        other_v_var = 0
-
-        for j in range(256):
-            fill_h_var += fill_count_h[j] * (j - fill_h_avr) * (j - fill_h_avr)
-            fill_s_var += fill_count_s[j] * (j - fill_s_avr) * (j - fill_s_avr)
-            fill_v_var += fill_count_v[j] * (j - fill_v_avr) * (j - fill_v_avr)
-            other_h_var += other_count_h[j] * (j - other_h_avr) * (j - other_h_avr)
-            other_s_var += other_count_s[j] * (j - other_s_avr) * (j - other_s_avr)
-            other_v_var += other_count_v[j] * (j - other_v_avr) * (j - other_v_avr)
-
-        fill_h_var = fill_h_var / fill_count_hsv
-        fill_s_var = fill_s_var / fill_count_hsv
-        fill_v_var = fill_v_var / fill_count_hsv
-        other_h_var = other_h_var / other_count_hsv
-        other_s_var = other_s_var / other_count_hsv
-        other_v_var = other_v_var / other_count_hsv
+        # # 计算均值
+        fill_h_avr = np.mean(H[fill_mark != 0])
+        fill_s_avr = np.mean(S[fill_mark != 0])
+        fill_v_avr = np.mean(V[fill_mark != 0])
+        other_h_avr = np.mean(H[other_mark != 0])
+        other_s_avr = np.mean(S[other_mark != 0])
+        other_v_avr = np.mean(V[other_mark != 0])
 
         # 根据均值方差的差值评分，差值越大分越低
-        print('BB3[INFO] 均值差', abs(fill_h_avr-other_h_avr), abs(fill_s_avr-other_s_avr), (fill_v_avr-other_v_avr))
-        print('BB3[INFO] 方差差', abs(fill_h_var - other_h_var), abs(fill_s_var - other_s_var), abs(fill_v_var - other_v_var))
-        self.bb3.h_avr = my_limit(7*self.bb3.AVR_K-(abs(fill_h_avr-other_h_avr)/self.bb3.MAX_AVR_DIFF_H)*7*self.bb3.AVR_K, 0, 7*self.bb3.AVR_K)
-        self.bb3.s_avr = my_limit(7*self.bb3.AVR_K-(abs(fill_s_avr-other_s_avr)/self.bb3.MAX_AVR_DIFF_S)*7*self.bb3.AVR_K, 0, 7*self.bb3.AVR_K)
-        self.bb3.v_avr = my_limit(6*self.bb3.AVR_K-(abs(fill_v_avr-other_v_avr)/self.bb3.MAX_AVR_DIFF_V)*6*self.bb3.AVR_K, 0, 6*self.bb3.AVR_K)
+        print('BB3[INFO] 均值差', abs(fill_h_avr-other_h_avr), abs(fill_s_avr-other_s_avr), abs(fill_v_avr-other_v_avr))
+        h_avr = my_limit(7-(abs(fill_h_avr-other_h_avr)/self.bb3.MAX_AVR_DIFF_H)*7, 0, 7)
+        s_avr = my_limit(7-(abs(fill_s_avr-other_s_avr)/self.bb3.MAX_AVR_DIFF_S)*7, 0, 7)
+        v_avr = my_limit(6-(abs(fill_v_avr-other_v_avr)/self.bb3.MAX_AVR_DIFF_V)*6, 0, 6)
 
-        self.bb3.h_var = my_limit(7*(1-self.bb3.AVR_K)-(abs(fill_h_var - other_h_var)/self.bb3.MAX_VAR_DIFF_H)*7*(1-self.bb3.AVR_K), 0, 7*(1-self.bb3.AVR_K))
-        self.bb3.s_var = my_limit(7*(1-self.bb3.AVR_K)-(abs(fill_s_var - other_s_var)/self.bb3.MAX_VAR_DIFF_S)*7*(1-self.bb3.AVR_K), 0, 7*(1-self.bb3.AVR_K))
-        self.bb3.v_var = my_limit(6*(1-self.bb3.AVR_K)-(abs(fill_v_var - other_v_var)/self.bb3.MAX_VAR_DIFF_V)*6*(1-self.bb3.AVR_K), 0, 6*(1-self.bb3.AVR_K))
-        # print(abs(fill_h_var - other_h_var))
+        self.bb3.other_diff = h_avr + s_avr + v_avr
+
         self.bb3.sum()
         return
 
@@ -442,9 +402,7 @@ class Teeth_Grade():
         return
 
     def score_all(self, teeth_pro):
-        self.clear()
-
-        self.score_aa1(teeth_pro.dst_all_mark, teeth_pro.site, teeth_pro.radius)
+        self.score_aa1(teeth_pro.dst_all_mark, teeth_pro.dst_fill_mark, teeth_pro.site, teeth_pro.radius)
         is_ok = self.score_aa2(teeth_pro.dst_all_mark, teeth_pro.dst_fill_mark, teeth_pro.site,
                                teeth_pro.img_info.operation_time)       
         if is_ok == 0:

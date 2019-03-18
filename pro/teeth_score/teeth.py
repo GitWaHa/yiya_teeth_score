@@ -88,35 +88,21 @@ class Teeth:
         hsv_image = cv2.cvtColor(self.src_image, cv2.COLOR_BGR2HSV)
         img_rows, img_cols = hsv_image.shape[:2]
 
-        for r in range(0, img_rows):
-            for c in range(0, img_cols):
-                if (5 <= hsv_image[r, c][0] <= 120) and \
-                   (5 <= hsv_image[r, c][1] <= 200) and \
-                   (50 <= hsv_image[r, c][2] <= 255):
-                    self.dst_all_mark[r, c] = 255
+        H,S,V=cv2.split(hsv_image)
+
+        self.dst_all_mark[(H <= 120)&(H >= 5)] = 255
 
         self.dst_all_mark = my_erode_dilate(self.dst_all_mark, 2, 6, (5, 5))
+        # cv2.imshow("dst_all_mark", self.dst_all_mark)
 
-        for r in range(0, img_rows):
-            for c in range(0, img_cols):
-                if self.dst_all_mark[r, c] == 255:
-                    if ((50 <= self.src_image[r, c][2] <= 220) or (50 <= self.src_image[r, c][1] <= 220) or(50 <= self.src_image[r, c][0] <= 220)) and \
-                       (self.src_image[r, c][0] <= self.src_image[r, c][2] and self.src_image[r, c][0] <= self.src_image[r, c][1]):
-                        pass
-                    else:
-                        self.dst_all_mark[r, c] = 0
-        self.dst_all_mark = my_fill_hole(self.dst_all_mark)
-        return
+        return 1
 
     # / *将二值化图映射到原图 * /
     def bin_to_rgb(self, bin_img):
         img_rows, img_cols = bin_img.shape[:2]
         re_dst_image = np.zeros(self.src_image.shape, np.uint8)
 
-        for r in range(0, img_rows):
-            for c in range(0, img_cols):
-                if bin_img[r, c] == 255:
-                    re_dst_image[r, c] = self.src_image[r, c]
+        re_dst_image[bin_img == 255] = self.src_image[bin_img == 255]
 
         return re_dst_image
 
@@ -143,10 +129,7 @@ class Teeth:
     def find_other_teeth(self, all_mark, fill_mark):
         img_rows, img_cols = all_mark.shape[:2]
         other = copy.deepcopy(all_mark)
-        for r in range(0, img_rows):
-            for c in range(0, img_cols):
-                if fill_mark[r, c] != 0:
-                    other[r, c] = 0
+        other[fill_mark != 0] = 0
         return other
 
     # / *提取照片中的全部牙齿 * /
@@ -158,7 +141,7 @@ class Teeth:
         thr = my_otsu_hsv(self.src_image, 0, 20)
         self.dst_all_mark = my_threshold_hsv(src_img_copy, thr)
         self.dst_all_mark = my_fill_hole(self.dst_all_mark)
-        # self.dst_all_mark = my_erode_dilate(self.dst_all_mark, 4, 4, (5, 5))
+        self.dst_all_mark = my_erode_dilate(self.dst_all_mark, 4, 4, (5, 5)) 
 
         # 仅保存最大轮廓
         img, contours, hierarchy = cv2.findContours(self.dst_all_mark.copy(),
@@ -168,14 +151,14 @@ class Teeth:
             mark_filted = np.zeros(self.dst_all_mark.shape[0:2], dtype=np.uint8)
             cv2.drawContours(mark_filted, [maxcnt], -1, 255, -1)
             self.dst_all_mark = mark_filted
-        return
+
+        return 1
 
     # / *提取所有需要的牙齿，包括单个患牙，全部牙齿，其他牙齿 * /
     def extract_all(self, current_path, img_name):
         img_path = os.path.join(current_path, img_name)
         txt_path = os.path.join(current_path, "site.txt")
 
-        self.clear()
         self.read_image(img_path)
         self.resize(TEETH_IMAGE_SET_ROW, TEETH_IMAGE_SET_ROW)
 
@@ -343,27 +326,23 @@ def my_limit(a, min_a, max_a):
 def my_otsu_hsv(src_image, start, end):
     hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
     img_rows, img_cols = hsv_image.shape[:2]
+    H, S, V = cv2.split(hsv_image)
 
     pixel_count = [0 for x in range(256)]
-    sum = 0
-    sum_count = 0
-    for r in range(0, img_rows):
-        for c in range(0, img_cols):
-            data = hsv_image[r, c][0]
-            if start < data < end:
-                pixel_count[data] += 1     # // 每个灰度级的像素数目
-                sum += data                # // 灰度之和
-                sum_count += 1
+    h_sum = 0
+    h_sum_count = 0
 
-    pixel_pro = [0.0 for x in range(256)]
-    # print(sum/sum_count)
-    for i in range(256):
-        pixel_pro[i] = pixel_count[i] / sum_count
+    for i in range(start, end):
+        pixel_count[i] = np.sum(H == i)     # 所需像素个数
+        h_sum_count += pixel_count[i]       # 总数
 
+    pixel_pro = [pixel_count[i] / h_sum_count for i in range(256)]
+
+    threshold = 0
     delta_max = 0
-    for i in range(256):
+    for i in range(start, end):
         w0 = w1 = u0_temp = u1_temp = 0.0
-        for j in range(256):
+        for j in range(start, end):
             if j <= i:  					    # //背景部分
                 w0 += pixel_pro[j]			    # //背景像素比例
                 u0_temp += j * pixel_pro[j]
@@ -386,16 +365,11 @@ def my_otsu_hsv(src_image, start, end):
 def my_threshold_hsv(src_image, thr):
     hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
     img_rows, img_cols = hsv_image.shape[:2]
+    H, S, V = cv2.split(hsv_image)
 
     bin_image = np.zeros((img_rows, img_cols), np.uint8)
 
-    for r in range(0, img_rows):
-        for c in range(0, img_cols):
-            data = hsv_image[r, c][0]
-            if data < thr:
-                bin_image[r, c] = 0
-            else:
-                bin_image[r, c] = 255
+    bin_image[H>thr] = 255
 
     return bin_image
 

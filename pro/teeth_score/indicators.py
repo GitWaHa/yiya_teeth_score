@@ -61,6 +61,7 @@ class Indicators_AA2():
         self.AREA_RATIO_SUBTRACT_START_MIN = 0.4    # 所补牙与周边牙齿面积所占比例 小于此比例开始扣分
         self.AREA_RATIO_SUBTRACT_RATIO = 0.05       # 所补牙与周边牙齿面积所占比例 每此比例扣一次分
         self.AREA_RATIO_SUBTRACT = 1                # 所补牙与周边牙齿面积所占比例 扣分值
+        self.AREA_RATIO_MIN = 0.1   
 
         self.SHOOTING_ANGLE_SCORE_FIRST = 0         # 术后术中拍摄角度与术前的一致性 总分 （术前0分，其他2分）
         self.SHOOTING_ANGLE_SCORE_OTHER = 2
@@ -203,47 +204,39 @@ class Indicators_BB2():   # （10分）
 
 
 '''
-BB3（有无明显色差：20分）：
-（1）术前：置0分
+BB3（所补牙与本牙颜色是否一致，20分）：
+（1）术前：置0分。
 （2）术中：置0分
 （3）术后：患牙充填材料与患牙周边牙体有无明显颜色差别（20分）。
+    其中，患牙整体与两边邻牙整体颜色是否一致（10分），整体分为上中下+左中右9个区域；
+    患牙所补区域（结合术中图片获得所补区域）与本牙的其他区域颜色过渡是否平滑（10分）。
 
 '''
 class Indicators_BB3():   # 指标
     def __init__(self):
-        self.AVR_K = 0.5
         self.MAX_AVR_DIFF_H = 20
         self.MAX_AVR_DIFF_S = 20
         self.MAX_AVR_DIFF_V = 20
 
-        self.MAX_VAR_DIFF_H = 3000
-        self.MAX_VAR_DIFF_S = 3000
-        self.MAX_VAR_DIFF_V = 3000
+        self.other_diff = 0.0       # 与相邻牙齿色差
+        self.oneself_diff = 0.0     # 与自己牙齿色差，即是否平滑过渡
 
-        self.h_avr = 0.0    # 色调均值
-        self.s_avr = 0.0
-        self.v_avr = 0.0
-        self.h_var = 0.0    # 色调方差
-        self.s_var = 0.0
-        self.v_var = 0.0
         self.grade = 0
 
     def clear(self):
         self.h_avr = 0.0
         self.s_avr = 0.0
         self.v_avr = 0.0
-        self.h_var = 0.0
-        self.s_var = 0.0
-        self.v_var = 0.0
+
         self.grade = 0
 
     def sum(self):
-        self.grade = round(self.h_avr + self.s_avr + self.v_avr + self.h_var + self.s_var + self.v_var + 0.5)
+        self.grade = round(self.other_diff + self.oneself_diff + 0.5)
 
     def print(self):
         print("/**************** BB3 ******************/")
-        print("BB3均值hsv：", self.h_avr, self.s_avr, self.v_avr)
-        print("BB3方差hsv：", self.h_var, self.s_var, self.v_var)
+        print("BB3与相邻牙齿色差得分：", self.other_diff)
+        print("BB3与自己牙齿色差得分：", self.oneself_diff)
         print("BB3总分数：", self.grade)
 
 
