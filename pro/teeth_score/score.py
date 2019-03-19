@@ -6,7 +6,7 @@ import numpy as np
 import filetype
 import math
 import os
-from teeth import my_limit,my_erode_dilate
+from teeth import *
 from indicators import *
 
 
@@ -33,7 +33,7 @@ class Teeth_Grade():
 
     def score_aa1(self, dst_all_mark, dst_fill_mark, site, radius):
         key_elements_score = self.aa1.CONTAINS_NEIGHBOR_SCORE
-        self.aa1.neighbor_num = 0
+        self.aa1.neighbor_flag = 0
 
         src_row, src_col = dst_all_mark.shape[:2]
 
@@ -67,7 +67,7 @@ class Teeth_Grade():
                 print('AA1[INFO] 左侧无牙')
             elif min_col > roi_width * 0.7 * self.aa1.THR_WIDTH:
                 left_tooth_status = 1
-                self.aa1.neighbor_num += 1
+                self.aa1.neighbor_flag = 1
                 print('AA1[INFO] 左侧有牙')
             else:
                 left_tooth_status = 2
@@ -83,7 +83,7 @@ class Teeth_Grade():
                 print('AA1[INFO] 右侧无牙')
             elif src_col - max_col > roi_width * 0.7 * self.aa1.THR_WIDTH:
                 right_tooth_status = 1
-                self.aa1.neighbor_num += 1
+                self.aa1.neighbor_flag = 2
                 print('AA1[INFO] 右侧有牙')
             else:
                 right_tooth_status = 2
@@ -95,13 +95,14 @@ class Teeth_Grade():
 
         if left_tooth_status == 3 and right_tooth_status == 3:
             key_elements_score = 1              # 左右都无参照牙齿
-            self.aa1.neighbor_num = 0
+            self.aa1.neighbor_flag = 0
             print('AA1[INFO] 左右都无参照牙齿,0分')
         elif (left_tooth_status == 3 and right_tooth_status == 2) or \
              (left_tooth_status == 2 and right_tooth_status == 3):
             key_elements_score = 1              # 只有单侧牙，且不完整
-            self.aa1.neighbor_num = 0
             print('AA1[INFO] 只有单侧牙，且不完整,1分')
+        elif left_tooth_status == 1 and right_tooth_status == 1:
+            self.aa1.neighbor_flag = 3
 
         self.aa1.contains_neighbor = key_elements_score
         self.aa1.undefined = 3          # 直接给3分
@@ -146,7 +147,7 @@ class Teeth_Grade():
 
             # print("所补牙具有多少颗相邻牙：", self.aa1.neighbor_num)
             pic_area = img_row * img_col  # 图片整体面积
-            area_ratio = area_fill * (self.aa1.neighbor_num+1) / pic_area  # 面积比例
+            area_ratio = area_fill * (self.aa1.neighbor_flag) / pic_area  # 面积比例
             print('AA2[INFO] 面积占比', area_ratio)
 
             if self.aa2.AREA_RATIO_SUBTRACT_START_MIN <= area_ratio <= self.aa2.AREA_RATIO_SUBTRACT_START_MAX:
@@ -311,27 +312,52 @@ class Teeth_Grade():
         self.bb2.sum()
         return
 
+    def score_bb3_get_roi(self, src_image, fill_mark):
+        hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
+        H, S, V = cv2.split(hsv_image)
+        cv2.imshow("s", S)
+
+        fill_image = np.zeros(src_image.shape, np.uint8)
+        fill_image[fill_mark == 255] = src_image[fill_mark == 255]
+
+        thr = my_otsu_hsv(fill_image, 100, 160, 'S')
+        mark = my_threshold_hsv(fill_image, thr, 'S')
+        mark = my_erode_dilate(mark, 4, 4, (5, 5))
+        img, contours, hierarchy = cv2.findContours(mark.copy(),
+                                                    cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        max_val = 0
+        max_n = 0
+        for i in range(0,len(contours)):
+            mark = np.zeros(fill_mark.shape[0:2], dtype=np.uint8)
+            cv2.drawContours(mark, [contours[i]], -1, 255, -1)
+            s_val = np.mean(S[mark==255])
+            print(s_val)
+            if s_val > max_val:
+                max_val = s_val
+                max_n = i
+
+            mark = np.zeros(fill_mark.shape[0:2], dtype=np.uint8)
+            cv2.drawContours(mark, [contours[max_n]], -1, 255, -1)
+            # cv2.imshow("mark", mark)
+
+            fill_image[mark == 0] = (0, 0, 0)
+
+            cv2.imshow("fill_roi", fill_image)
+
+
     def score_bb3(self, src_image, fill_mark, other_mark, operation_time):
         if operation_time == '术前':
             return
         elif operation_time == '术中':
+            self.score_bb3_get_roi(src_image, fill_mark)
             return
 
         hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
         img_rows, img_cols = hsv_image.shape[:2]
         H, S, V = cv2.split(hsv_image)
+        # cv2.imshow("H", S)
 
-        # for r in range(0, img_rows):
-        #     for c in range(0, img_cols):
-        #         if fill_mark[r, c] != 0:
-        #             if hsv_image[r, c][0] < 16:
-        #                 hsv_image[r, c] = (0, 0, 0)
-        #                 src_image[r, c] = (0, 0, 0)
-        #         else:
-        #             hsv_image[r, c] = (0, 0, 0)
-        #             src_image[r, c] = (0, 0, 0)
-        # src_image = my_erode_dilate(src_image, 4, 4, (5, 5))
-        # cv2.imshow("hsv", hsv_image)
         # cv2.imshow("src", src_image)
 
         # # 计算均值
@@ -344,11 +370,10 @@ class Teeth_Grade():
 
         # 根据均值方差的差值评分，差值越大分越低
         print('BB3[INFO] 均值差', abs(fill_h_avr-other_h_avr), abs(fill_s_avr-other_s_avr), abs(fill_v_avr-other_v_avr))
-        h_avr = my_limit(7-(abs(fill_h_avr-other_h_avr)/self.bb3.MAX_AVR_DIFF_H)*7, 0, 7)
-        s_avr = my_limit(7-(abs(fill_s_avr-other_s_avr)/self.bb3.MAX_AVR_DIFF_S)*7, 0, 7)
-        v_avr = my_limit(6-(abs(fill_v_avr-other_v_avr)/self.bb3.MAX_AVR_DIFF_V)*6, 0, 6)
+        h_avr = my_limit(5-(abs(fill_h_avr-other_h_avr)/self.bb3.MAX_AVR_DIFF_H)*5, 0, 5)
+        s_avr = my_limit(5-(abs(fill_s_avr-other_s_avr)/self.bb3.MAX_AVR_DIFF_S)*5, 0, 5)
 
-        self.bb3.other_diff = h_avr + s_avr + v_avr
+        self.bb3.other_diff = h_avr + s_avr
 
         self.bb3.sum()
         return

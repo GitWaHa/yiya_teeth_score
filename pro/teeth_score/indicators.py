@@ -16,13 +16,12 @@ class Indicators_AA1():   # （10分）
         self.CONTAINS_NEIGHBOR_SCORE = 7     # 包含相邻牙齿总分数
         self.UNDEFINED_SCORE = 3                   # 未定义三分
 
-        self.neighbor_num = 0                # 具有相邻牙齿的数目
+        self.neighbor_flag = 0               # 相邻牙齿标志位 0：无， 1：左， 2：右， 3：左右
         self.contains_neighbor = 0.0         # 患牙是否含有相邻牙齿得分（7分）
         self.undefined = 0.0                 # 未定义（3分）
         self.grade = 0
 
     def clear(self):
-        self.neighbor_num = 0
         self.contains_neighbor = 0.0
         self.undefined = 0.0
         self.grade = 0

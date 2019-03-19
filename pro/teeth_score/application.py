@@ -1,6 +1,7 @@
 #!/usr/bin/python3.6
 # coding=utf-8
 
+# import matplotlib.pyplot as plt
 import time
 import cv2 as cv
 from teeth import *
@@ -57,7 +58,7 @@ def main():
             start = time.time()
             # 提取整个牙齿、按个所补牙及剩余牙齿
             teeth.extract_all(current_path, img_names[j])
-            # teeth.img_show()
+            teeth.img_show()
             elapsed = (time.time() - start)
             print("提取牙齿Time used:", elapsed, '\n')
 
@@ -67,13 +68,13 @@ def main():
             elapsed = (time.time() - start)
             print("评分Time used:", elapsed, '\n')
 
-            # key = 0
-            # while key != 84:
-            #     key = cv.waitKey(0)
+            key = 0
+            while key != 84:
+                key = cv.waitKey(0)
             
-            #     if key == 27:
-            #         cv.destroyAllWindows()
-            #         return
+                if key == 27:
+                    cv.destroyAllWindows()
+                    return
         time_order = 0
 
 

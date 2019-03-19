@@ -1,6 +1,7 @@
 #!/usr/bin/python3.6
 # coding=utf-8
 
+# from matplotlib import pyplot as plt
 import cv2
 import numpy as np
 import copy
@@ -46,6 +47,10 @@ class Img_info:
 
 class Teeth:
     def __init__(self):
+        self.AREA_K = 1.0                    # 面积得分*此系数 对包含相邻牙齿得分进行扣分
+        self.THR_HEIGHT = 0.25               # 大于 ROI*THR_HEIGHT 判断有相邻牙齿
+        self.THR_WIDTH = 0.5                 # 大于 ROI*THR_WIDTH 判断相邻牙齿完整
+
         self.src_image = 0
         self.src_gray_image = 0
         self.dst_all_mark = 0
@@ -54,6 +59,7 @@ class Teeth:
         self.site = (0, 0)
         self.radius = 0
         self.img_info = Img_info()
+        self.neighbor_flag = 0
 
     # / *清除私有成员数据 * /
     def clear(self):
@@ -107,12 +113,13 @@ class Teeth:
         return re_dst_image
 
     # / *分割单个患牙 * /
-    def find_fill_teeth(self, site, radius):
+    def find_fill_teeth(self, all_mark, site, radius):
         min_row = int(my_limit(site[0] - radius, 0, self.src_image.shape[0]))
         max_row = int(my_limit(site[0] + radius, 0, self.src_image.shape[0]))
         min_col = int(my_limit(site[1] - radius, 0, self.src_image.shape[1]))
         max_col = int(my_limit(site[1] + radius, 0, self.src_image.shape[1]))
 
+        # dst_all_rgb = self.bin_to_rgb(all_mark)
         roi_img = self.src_image[min_row:max_row, min_col:max_col]
         row, col = roi_img.shape[:2]
 
@@ -125,11 +132,160 @@ class Teeth:
         self.dst_fill_mark[min_row:max_row, min_col:max_col] = mark_bin
         return
 
+    def find_neighbor_info(self, dst_all_mark, dst_fill_mark, site, radius):
+        self.neighbor_flag = 0
+
+        src_row, src_col = dst_all_mark.shape[:2]
+
+        # 坐标转换
+        min_row = int(my_limit(site[0] - radius, 0, src_row))
+        max_row = int(my_limit(site[0] + radius, 0, src_row))
+        min_col = int(my_limit(site[1] - radius, 0, src_col))
+        max_col = int(my_limit(site[1] + radius, 0, src_col))
+
+        # 区域可视化
+        # roi = dst_all_mark[min_row:max_row, min_col:max_col]
+        # cv2.imshow("aa1_roi", roi)
+        img, contours, hierarchy = cv2.findContours(dst_fill_mark.copy(),
+                                                    cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
+            col, row, w, h = cv2.boundingRect(maxcnt)
+
+        roi_height = max_row - min_row
+        roi_width = max_col - min_col
+
+        # 统计患牙坐标周围第一列和最后一列白点数
+        left_tooth_point_num = np.sum(dst_all_mark[0:src_row, min_col] == 255)
+        right_tooth_point_num = np.sum(dst_all_mark[0:src_row, max_col-1] == 255)
+
+        # 参照牙存在情况:1-有牙 2-不完整 3-最里侧
+        # 认为一侧白点超过一定数量,并且原始图像感兴趣区域左侧/右侧还有较大空间,则这一侧有牙
+        if left_tooth_point_num > roi_height * self.THR_HEIGHT:
+            if col <= 10:
+                left_tooth_status = 3
+            elif min_col > roi_width * 0.7 * self.THR_WIDTH:
+                left_tooth_status = 1
+                self.neighbor_flag = 1
+            else:
+                left_tooth_status = 2
+        else:
+            left_tooth_status = 3
+
+        if right_tooth_point_num > roi_height * self.THR_HEIGHT:
+            if (col + w) >= (src_col - 10):
+                right_tooth_status = 3
+            elif src_col - max_col > roi_width * 0.7 * self.THR_WIDTH:
+                right_tooth_status = 1
+                self.neighbor_flag = 2
+            else:
+                right_tooth_status = 2
+        else:
+            right_tooth_status = 3
+
+        if left_tooth_status == 3 and right_tooth_status == 3:
+            self.neighbor_flag = 0
+
+        elif left_tooth_status == 1 and right_tooth_status == 1:
+            self.neighbor_flag = 3
+
     # / *将全部牙齿与单个患牙相减，得到除患牙外的其他牙齿 * /
-    def find_other_teeth(self, all_mark, fill_mark):
+    def find_neighbor_teeth(self, all_mark, fill_mark, site, radius):
+        self.find_neighbor_info(self.dst_all_mark, self.dst_fill_mark, self.site, self.radius)
+        if self.neighbor_flag == 0:
+            return 0
+
         img_rows, img_cols = all_mark.shape[:2]
-        other = copy.deepcopy(all_mark)
-        other[fill_mark != 0] = 0
+        other = np.zeros((img_rows, img_cols), dtype = np.uint8)
+        dst_all_rgb = self.bin_to_rgb(all_mark)
+
+        ra = radius
+        site_c = site[1]
+        site_r = site[0]
+        print(self.neighbor_flag)
+        # 仅保存最大轮廓
+        img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
+                                                    cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
+            col, row, w, h = cv2.boundingRect(maxcnt)
+            if self.neighbor_flag == 1 or self.neighbor_flag == 3:
+                site_c = site[1] - w
+                min_val = 10000
+                while site_c > 0:
+                    site_c -= 1
+                    val = np.sum(all_mark[:,site_c]==255)
+                    if val < min_val:
+                        min_val = val
+                        min_c = site_c 
+                    if val - min_val >10:
+                        break
+
+                # ra = (col - min_c)//2
+                site_c = (min_c + col)//2
+            elif self.neighbor_flag == 2:
+                site_c = site[1] + w
+                min_val = 10000
+                for c in range(site_c, img_cols):
+                    val = np.sum(all_mark[:,c]==255)
+                    if val < min_val:
+                        min_val = val
+                        min_c = c 
+                    if val - min_val >10:
+                        break
+
+                # ra = (min_c - col-w)//2
+                site_c = (min_c + col+w)//2
+
+        row_list = []
+        for r in range(img_rows):
+            if all_mark[r,site_c] == 255:
+                row_list.append(r)
+        site_r = int(np.mean(row_list))
+
+
+        min_row = int(my_limit(site_r - ra*1.5, 0, img_rows))
+        max_row = int(my_limit(site_r + ra*1.5, 0, img_rows))
+        min_col = int(my_limit(site_c - ra*1.3, 0, img_cols))
+        max_col = int(my_limit(site_c + ra*1.3, 0, img_cols))
+
+        # plt.plot(hist)
+        # plt.show()
+        sure_bg = np.zeros((img_rows, img_cols), np.uint8)
+        for r in range(min_row, max_row):  # 10 155
+            for c in range(min_col, max_col):  # 70 205
+                sure_bg[r, c] = 255
+
+        sure_fg = np.zeros((img_rows, img_cols), np.uint8)
+        for r in range(site_r-ra//6, site_r+ra//6):
+            for c in range(site_c-ra//6, site_c+ra//6):
+                sure_fg[r, c] = 255
+        # cv2.imshow("sure_fg", sure_fg)
+
+        # 未知的区域
+        unknow = cv2.subtract(sure_bg, sure_fg)
+        cv2.imshow("unknow", unknow)
+
+        # 标记
+        ret, markers = cv2.connectedComponents(sure_bg)  # 将确定的背景标记为0,其他为非零整数
+        markers = markers + 1  # 将确定的背景记为1
+        markers[unknow == 255] = 0  # 将确未知区域标记为0
+
+        markers = cv2.watershed(dst_all_rgb, markers)
+        # cv2.imshow("dst_all_rgb", dst_all_rgb)
+
+        other[markers == 2] = 255
+
+        # roi_img = dst_all_rgb[min_row:max_row, min_col:max_col]
+        # row, col = roi_img.shape[:2]
+
+        # # unet获得目标牙齿的bin
+        # roi_img = cv2.resize(roi_img, (256, 256))
+        # mark_bin = unet_extract_fillteeth(roi_img)
+        # mark_bin = cv2.resize(mark_bin, (col, row))
+
+        # other[min_row:max_row, min_col:max_col] = mark_bin
+
         return other
 
     # / *提取照片中的全部牙齿 * /
@@ -179,13 +335,11 @@ class Teeth:
         print("所有牙齿 Time used:", run_time, '\n')
 
         start = time.time()
-        self.find_fill_teeth(self.site, self.radius)
+        self.find_fill_teeth(self.dst_all_mark, self.site, self.radius)
         run_time = time.time() - start
         print("单个牙齿 Time used:", run_time, '\n')
-
-        temp_fill_bin = my_erode_dilate(self.dst_fill_mark, 0, 2, (10, 10))
-        self.dst_other_mark = self.find_other_teeth(self.dst_all_mark, temp_fill_bin)
-
+        if self.img_info.operation_time == '术后':
+            self.dst_other_mark = self.find_neighbor_teeth(self.dst_all_mark, self.dst_fill_mark, self.site, self.radius)
         return
 
     # / *根据site.txt文件过得所补牙位置信息 * /
@@ -323,53 +477,66 @@ def my_limit(a, min_a, max_a):
 
 
 # 大津阈值针对HSV
-def my_otsu_hsv(src_image, start, end):
+def my_otsu_hsv(src_image, start, end, channel = 'H'):
     hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
     img_rows, img_cols = hsv_image.shape[:2]
     H, S, V = cv2.split(hsv_image)
 
+    if channel == 'H':
+        thr_channel = H
+    elif channel == 'S':
+        thr_channel = S
+    elif channel == 'V':
+        thr_channel = V
+
     pixel_count = [0 for x in range(256)]
     h_sum = 0
     h_sum_count = 0
-
-    for i in range(start, end):
-        pixel_count[i] = np.sum(H == i)     # 所需像素个数
-        h_sum_count += pixel_count[i]       # 总数
-
-    pixel_pro = [pixel_count[i] / h_sum_count for i in range(256)]
-
     threshold = 0
-    delta_max = 0
     for i in range(start, end):
-        w0 = w1 = u0_temp = u1_temp = 0.0
-        for j in range(start, end):
-            if j <= i:  					    # //背景部分
-                w0 += pixel_pro[j]			    # //背景像素比例
-                u0_temp += j * pixel_pro[j]
-            else:  							    # //前景部分
-                w1 += pixel_pro[j]			    # //前景像素比例
-                u1_temp += j * pixel_pro[j]
-        if w0 != 0 and w1 != 0:
-            u0 = u0_temp / w0		                # //背景像素点的平均灰度
-            u1 = u1_temp / w1		                # //前景像素点的平均灰度
-            delta_temp = (w0 * w1 * pow((u0 - u1), 2))
-            # // 当类间方差delta_temp最大时，对应的i就是阈值T
-            if delta_temp > delta_max:
-                delta_max = delta_temp
-                threshold = i
+        pixel_count[i] = np.sum(thr_channel == i)     # 所需像素个数
+        h_sum_count += pixel_count[i]       # 总数
+    if h_sum_count != 0:
+        pixel_pro = [pixel_count[i] / h_sum_count for i in range(256)]
+
+        delta_max = 0
+        for i in range(start, end):
+            w0 = w1 = u0_temp = u1_temp = 0.0
+            for j in range(start, end):
+                if j <= i:  					    # //背景部分
+                    w0 += pixel_pro[j]			    # //背景像素比例
+                    u0_temp += j * pixel_pro[j]
+                else:  							    # //前景部分
+                    w1 += pixel_pro[j]			    # //前景像素比例
+                    u1_temp += j * pixel_pro[j]
+            if w0 != 0 and w1 != 0:
+                u0 = u0_temp / w0		                # //背景像素点的平均灰度
+                u1 = u1_temp / w1		                # //前景像素点的平均灰度
+                delta_temp = (w0 * w1 * pow((u0 - u1), 2))
+                # // 当类间方差delta_temp最大时，对应的i就是阈值T
+                if delta_temp > delta_max:
+                    delta_max = delta_temp
+                    threshold = i
 
     return threshold
 
 
 # 二值化针对HSV
-def my_threshold_hsv(src_image, thr):
+def my_threshold_hsv(src_image, thr, channel = 'H'):
     hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
     img_rows, img_cols = hsv_image.shape[:2]
     H, S, V = cv2.split(hsv_image)
 
+    if channel == 'H':
+        thr_channel = H
+    elif channel == 'S':
+        thr_channel = S
+    elif channel == 'V':
+        thr_channel = V
+
     bin_image = np.zeros((img_rows, img_cols), np.uint8)
 
-    bin_image[H>thr] = 255
+    bin_image[thr_channel>thr] = 255
 
     return bin_image
 
