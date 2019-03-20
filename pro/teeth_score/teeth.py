@@ -1,6 +1,6 @@
 #!/usr/bin/python3.6
 # coding=utf-8
-
+ 
 # from matplotlib import pyplot as plt
 import cv2
 import numpy as np
@@ -59,7 +59,7 @@ class Teeth:
         self.site = (0, 0)
         self.radius = 0
         self.img_info = Img_info()
-        self.neighbor_flag = 0
+        self.neighbor_flag = 0               # 相邻牙齿标志位 0：无， 1：左， 2：右， 3：左右
 
     # / *清除私有成员数据 * /
     def clear(self):
@@ -192,6 +192,7 @@ class Teeth:
     # / *将全部牙齿与单个患牙相减，得到除患牙外的其他牙齿 * /
     def find_neighbor_teeth(self, all_mark, fill_mark, site, radius):
         self.find_neighbor_info(self.dst_all_mark, self.dst_fill_mark, self.site, self.radius)
+
         if self.neighbor_flag == 0:
             return 0
 
@@ -202,7 +203,7 @@ class Teeth:
         ra = radius
         site_c = site[1]
         site_r = site[0]
-        print(self.neighbor_flag)
+
         # 仅保存最大轮廓
         img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
                                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -210,28 +211,38 @@ class Teeth:
             maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
             col, row, w, h = cv2.boundingRect(maxcnt)
             if self.neighbor_flag == 1 or self.neighbor_flag == 3:
-                site_c = site[1] - w
+                site_c = int(col - w*0.2)
                 min_val = 10000
-                while site_c > 0:
-                    site_c -= 1
+                init_val = np.sum(all_mark[:,site_c]==255)
+                min_c = 0
+                while site_c > 0:  
                     val = np.sum(all_mark[:,site_c]==255)
-                    if val < min_val:
-                        min_val = val
-                        min_c = site_c 
-                    if val - min_val >10:
+                    if val > init_val:
+                        init_val = val
+                    if val < init_val - 5:
+                        if val < min_val:
+                            min_val = val
+                            min_c = site_c 
+                    if val - min_val >5:
                         break
+                    site_c -= 1
 
                 # ra = (col - min_c)//2
                 site_c = (min_c + col)//2
             elif self.neighbor_flag == 2:
-                site_c = site[1] + w
+                site_c = int(col + w*1.2)
                 min_val = 10000
+                init_val = np.sum(all_mark[:,site_c]==255)
+                min_c = img_cols
                 for c in range(site_c, img_cols):
                     val = np.sum(all_mark[:,c]==255)
-                    if val < min_val:
-                        min_val = val
-                        min_c = c 
-                    if val - min_val >10:
+                    if val > init_val:
+                        init_val = val
+                    if val < init_val - 5:
+                        if val < min_val:
+                            min_val = val
+                            min_c = c 
+                    if val - min_val >5:
                         break
 
                 # ra = (min_c - col-w)//2
@@ -244,13 +255,12 @@ class Teeth:
         site_r = int(np.mean(row_list))
 
 
-        min_row = int(my_limit(site_r - ra*1.5, 0, img_rows))
-        max_row = int(my_limit(site_r + ra*1.5, 0, img_rows))
+        min_row = int(my_limit(site_r - ra*2, 0, img_rows))
+        max_row = int(my_limit(site_r + ra*2, 0, img_rows))
         min_col = int(my_limit(site_c - ra*1.3, 0, img_cols))
         max_col = int(my_limit(site_c + ra*1.3, 0, img_cols))
 
-        # plt.plot(hist)
-        # plt.show()
+        # 标记分水岭
         sure_bg = np.zeros((img_rows, img_cols), np.uint8)
         for r in range(min_row, max_row):  # 10 155
             for c in range(min_col, max_col):  # 70 205
@@ -276,6 +286,9 @@ class Teeth:
 
         other[markers == 2] = 255
 
+        other = my_erode_dilate(other, 4, 4, (5, 5)) 
+
+        # unet 提取相邻牙齿
         # roi_img = dst_all_rgb[min_row:max_row, min_col:max_col]
         # row, col = roi_img.shape[:2]
 
@@ -338,8 +351,8 @@ class Teeth:
         self.find_fill_teeth(self.dst_all_mark, self.site, self.radius)
         run_time = time.time() - start
         print("单个牙齿 Time used:", run_time, '\n')
-        if self.img_info.operation_time == '术后':
-            self.dst_other_mark = self.find_neighbor_teeth(self.dst_all_mark, self.dst_fill_mark, self.site, self.radius)
+        # if self.img_info.operation_time == '术后':
+        self.dst_other_mark = self.find_neighbor_teeth(self.dst_all_mark, self.dst_fill_mark, self.site, self.radius)
         return
 
     # / *根据site.txt文件过得所补牙位置信息 * /

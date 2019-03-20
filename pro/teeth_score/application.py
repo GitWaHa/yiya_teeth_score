@@ -7,7 +7,7 @@ import cv2 as cv
 from teeth import *
 from score import Teeth_Grade
 import sys
-
+ 
 
 def main():
     img_order = 0

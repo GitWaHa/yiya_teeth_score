@@ -16,12 +16,13 @@ class Indicators_AA1():   # （10分）
         self.CONTAINS_NEIGHBOR_SCORE = 7     # 包含相邻牙齿总分数
         self.UNDEFINED_SCORE = 3                   # 未定义三分
 
-        self.neighbor_flag = 0               # 相邻牙齿标志位 0：无， 1：左， 2：右， 3：左右
+        self.neighbor_num = 0
         self.contains_neighbor = 0.0         # 患牙是否含有相邻牙齿得分（7分）
         self.undefined = 0.0                 # 未定义（3分）
         self.grade = 0
 
     def clear(self):
+        self.neighbor_num = 0
         self.contains_neighbor = 0.0
         self.undefined = 0.0
         self.grade = 0
@@ -213,19 +214,18 @@ BB3（所补牙与本牙颜色是否一致，20分）：
 '''
 class Indicators_BB3():   # 指标
     def __init__(self):
-        self.MAX_AVR_DIFF_H = 20
-        self.MAX_AVR_DIFF_S = 20
-        self.MAX_AVR_DIFF_V = 20
+        self.MAX_AVR_DIFF_H = 5
+        self.MAX_AVR_DIFF_S = 100
 
         self.other_diff = 0.0       # 与相邻牙齿色差
         self.oneself_diff = 0.0     # 与自己牙齿色差，即是否平滑过渡
+        self.roi_site = 0, 0, 0, 0  # 保存位置信息 
 
         self.grade = 0
 
     def clear(self):
-        self.h_avr = 0.0
-        self.s_avr = 0.0
-        self.v_avr = 0.0
+        self.other_diff = 0.0
+        self.oneself_diff = 0.0
 
         self.grade = 0
 

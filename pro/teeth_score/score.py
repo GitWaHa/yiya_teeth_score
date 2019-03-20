@@ -33,7 +33,6 @@ class Teeth_Grade():
 
     def score_aa1(self, dst_all_mark, dst_fill_mark, site, radius):
         key_elements_score = self.aa1.CONTAINS_NEIGHBOR_SCORE
-        self.aa1.neighbor_flag = 0
 
         src_row, src_col = dst_all_mark.shape[:2]
 
@@ -67,8 +66,8 @@ class Teeth_Grade():
                 print('AA1[INFO] 左侧无牙')
             elif min_col > roi_width * 0.7 * self.aa1.THR_WIDTH:
                 left_tooth_status = 1
-                self.aa1.neighbor_flag = 1
                 print('AA1[INFO] 左侧有牙')
+                self.aa1.neighbor_num += 1
             else:
                 left_tooth_status = 2
                 print('AA1[INFO] 左侧有牙，不完整,扣3分')
@@ -83,8 +82,8 @@ class Teeth_Grade():
                 print('AA1[INFO] 右侧无牙')
             elif src_col - max_col > roi_width * 0.7 * self.aa1.THR_WIDTH:
                 right_tooth_status = 1
-                self.aa1.neighbor_flag = 2
                 print('AA1[INFO] 右侧有牙')
+                self.aa1.neighbor_num += 1
             else:
                 right_tooth_status = 2
                 print('AA1[INFO] 右侧有牙，不完整,扣3分')
@@ -95,14 +94,11 @@ class Teeth_Grade():
 
         if left_tooth_status == 3 and right_tooth_status == 3:
             key_elements_score = 1              # 左右都无参照牙齿
-            self.aa1.neighbor_flag = 0
             print('AA1[INFO] 左右都无参照牙齿,0分')
         elif (left_tooth_status == 3 and right_tooth_status == 2) or \
              (left_tooth_status == 2 and right_tooth_status == 3):
             key_elements_score = 1              # 只有单侧牙，且不完整
             print('AA1[INFO] 只有单侧牙，且不完整,1分')
-        elif left_tooth_status == 1 and right_tooth_status == 1:
-            self.aa1.neighbor_flag = 3
 
         self.aa1.contains_neighbor = key_elements_score
         self.aa1.undefined = 3          # 直接给3分
@@ -147,7 +143,7 @@ class Teeth_Grade():
 
             # print("所补牙具有多少颗相邻牙：", self.aa1.neighbor_num)
             pic_area = img_row * img_col  # 图片整体面积
-            area_ratio = area_fill * (self.aa1.neighbor_flag) / pic_area  # 面积比例
+            area_ratio = area_fill * (self.aa1.neighbor_num+1) / pic_area  # 面积比例
             print('AA2[INFO] 面积占比', area_ratio)
 
             if self.aa2.AREA_RATIO_SUBTRACT_START_MIN <= area_ratio <= self.aa2.AREA_RATIO_SUBTRACT_START_MAX:
@@ -315,7 +311,7 @@ class Teeth_Grade():
     def score_bb3_get_roi(self, src_image, fill_mark):
         hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
         H, S, V = cv2.split(hsv_image)
-        cv2.imshow("s", S)
+        # cv2.imshow("s", S)
 
         fill_image = np.zeros(src_image.shape, np.uint8)
         fill_image[fill_mark == 255] = src_image[fill_mark == 255]
@@ -339,42 +335,86 @@ class Teeth_Grade():
 
             mark = np.zeros(fill_mark.shape[0:2], dtype=np.uint8)
             cv2.drawContours(mark, [contours[max_n]], -1, 255, -1)
+            col, row, w, h = cv2.boundingRect(contours[max_n])
             # cv2.imshow("mark", mark)
 
-            fill_image[mark == 0] = (0, 0, 0)
-
-            cv2.imshow("fill_roi", fill_image)
-
+            # 可视化
+            # fill_image[mark == 0] = (0, 0, 0)
+            # cv2.imshow("fill_roi", fill_image)
+        if contours:
+            return col, row, w, h
+        else:
+            return -1, 0, 0, 0
 
     def score_bb3(self, src_image, fill_mark, other_mark, operation_time):
         if operation_time == '术前':
             return
         elif operation_time == '术中':
-            self.score_bb3_get_roi(src_image, fill_mark)
+            roi_col, roi_row, roi_w, roi_h = self.score_bb3_get_roi(src_image, fill_mark)
+            if roi_col != -1:
+                
+                img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
+                                                        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                if contours:
+                    maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
+                    col, row, w, h = cv2.boundingRect(maxcnt)
+                    col_k = abs((roi_col - col)/w)
+                    row_k = abs((roi_row - row)/h)
+                    w_k = abs(roi_w / w)
+                    h_k = abs(roi_h / h)
+                    self.bb3.roi_site = col_k, row_k, w_k, h_k
             return
 
-        hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
-        img_rows, img_cols = hsv_image.shape[:2]
-        H, S, V = cv2.split(hsv_image)
-        # cv2.imshow("H", S)
+        if self.bb3.roi_site[0] != -1:
+            col_k, row_k, w_k, h_k = self.bb3.roi_site
+            img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
+                                                        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
+                col, row, w, h = cv2.boundingRect(maxcnt)
+                roi_col = int(col + col_k*w)
+                roi_row = int(row + row_k*h)
+                roi_w = int(w_k*w)
+                roi_h = int(h_k*h)
+                
+            img_other, contours_other, hierarchy_other = cv2.findContours(other_mark.copy(),
+                                                                              cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours_other:
+                maxcnt = max(contours_other, key=lambda x: cv2.contourArea(x))
+                col, row, w, h = cv2.boundingRect(maxcnt)
+                roi_col_other = int(col + col_k*w)
+                roi_row_other = int(row + row_k*h)
+                roi_w_other = int(w_k*w)
+                roi_h_other = int(h_k*h)
 
-        # cv2.imshow("src", src_image)
+            cv2.rectangle(src_image, (roi_col, roi_row), (roi_col+roi_w, roi_row+roi_h), (255,0,0), 1)
+            cv2.rectangle(src_image, (roi_col_other, roi_row_other), (roi_col_other+roi_w_other, roi_row_other+roi_h_other), (255,255,0), 1)
+            cv2.imshow("rectangle", src_image)
 
-        # # 计算均值
-        fill_h_avr = np.mean(H[fill_mark != 0])
-        fill_s_avr = np.mean(S[fill_mark != 0])
-        fill_v_avr = np.mean(V[fill_mark != 0])
-        other_h_avr = np.mean(H[other_mark != 0])
-        other_s_avr = np.mean(S[other_mark != 0])
-        other_v_avr = np.mean(V[other_mark != 0])
+            hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
+            img_rows, img_cols = hsv_image.shape[:2]
+            H, S, V = cv2.split(hsv_image)
 
-        # 根据均值方差的差值评分，差值越大分越低
-        print('BB3[INFO] 均值差', abs(fill_h_avr-other_h_avr), abs(fill_s_avr-other_s_avr), abs(fill_v_avr-other_v_avr))
-        h_avr = my_limit(5-(abs(fill_h_avr-other_h_avr)/self.bb3.MAX_AVR_DIFF_H)*5, 0, 5)
-        s_avr = my_limit(5-(abs(fill_s_avr-other_s_avr)/self.bb3.MAX_AVR_DIFF_S)*5, 0, 5)
+            # print(np.mean([0,0,1,1]&[255,255,2,2]))
+            fill_H = H[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]
+            fill_S = S[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]
+            other_H = H[roi_row_other:roi_row_other+roi_h_other, roi_col_other:roi_col_other+roi_w_other]
+            other_S = S[roi_row_other:roi_row_other+roi_h_other, roi_col_other:roi_col_other+roi_w_other]
+            # # 计算均值
+            fill_h_avr = np.mean(fill_H[fill_mark[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]!=0])
+            fill_s_avr = np.mean(fill_S[fill_mark[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]!=0])
 
-        self.bb3.other_diff = h_avr + s_avr
+            other_h_avr = np.mean(other_H[other_mark[roi_row_other:roi_row_other+roi_h_other, roi_col_other:roi_col_other+roi_w_other]!=0])
+            other_s_avr = np.mean(other_S[other_mark[roi_row_other:roi_row_other+roi_h_other, roi_col_other:roi_col_other+roi_w_other]!=0])
+            
+            # 根据均值方差的差值评分，差值越大分越低
+            print('BB3[INFO] 均值差', abs(fill_h_avr-other_h_avr), abs(fill_s_avr-other_s_avr))
+            h_avr = my_limit(5-(abs(fill_h_avr-other_h_avr)/self.bb3.MAX_AVR_DIFF_H)*5, 0, 5)
+            s_avr = my_limit(5-(abs(fill_s_avr-other_s_avr)/self.bb3.MAX_AVR_DIFF_S)*5, 0, 5)
 
+            self.bb3.other_diff = h_avr + s_avr
+
+        self.roi_site = 0, 0, 0, 0
         self.bb3.sum()
         return
 
