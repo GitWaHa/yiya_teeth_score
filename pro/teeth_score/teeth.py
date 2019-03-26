@@ -7,6 +7,7 @@ import numpy as np
 import copy
 import os
 import time
+import re
 
 from unet_extract import *
 
@@ -24,14 +25,14 @@ class Img_info:
         self.pro_path = 0
 
     def get_info(self, img_name, pro_path):
-        img_name_str = img_name.split("-")
-        self.patient_name = img_name_str[0]
-        self.operation_time = img_name_str[1]
-        self.operation_name = img_name_str[2]
-
-        doctor_name_str = img_name_str[3].split(".")
-        self.doctor_name = doctor_name_str[0]
-        self.img_type = doctor_name_str[1]
+        pattern = r"(.*)-(.*)-(.*)-(.*)\.(.*)"
+        info = list(re.findall(pattern, img_name)[0])
+        print(type(info), info)
+        self.patient_name = info[0]
+        self.operation_time = info[1]
+        self.operation_name = info[2]
+        self.doctor_name = info[3]
+        self.img_type = info[4]
         self.pro_path = pro_path
 
         return

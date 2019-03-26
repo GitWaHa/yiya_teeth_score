@@ -46,6 +46,7 @@ def main():
         # 对三证照片分割评分
         for j in range(time_order, 3):
             teeth.img_info.get_info(img_names[j], dir)
+            teeth.img_info.print_info()
             img_path = os.path.join(current_path, img_names[j])
             print(img_path)
 
