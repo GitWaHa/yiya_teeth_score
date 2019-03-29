@@ -7,14 +7,14 @@ import cv2 as cv
 from teeth import *
 from score import Teeth_Grade
 import sys
- 
+
 
 def main():
     img_order = 0
     time_order = 0
     teeth = Teeth()
     grade = Teeth_Grade()
-    dir = "/home/waha/git/pro/JPG_TEST/"
+    dir = "/home/waha/Git/teeth_score/pro/JPG_TEST/"
 
     # 参数获取
     for i in range(0, len(sys.argv)):
