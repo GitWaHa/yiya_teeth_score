@@ -32,6 +32,7 @@ def adjustData(img,mask,flag_multi_class,num_class):
         img = img / 255
         mask = mask[:,:,:,0] if(len(mask.shape) == 4) else mask[:,:,0]
         new_mask = np.zeros(mask.shape + (num_class,))
+        print(mask.shape)
         for i in range(num_class):
             #for one pixel in the image, find the class in mask and convert it into one-hot vector
             #index = np.where(mask == i)
@@ -51,7 +52,7 @@ def adjustData(img,mask,flag_multi_class,num_class):
 
 def trainGenerator(batch_size,train_path,image_folder,mask_folder,aug_dict,image_color_mode = "grayscale",
                     mask_color_mode = "grayscale",image_save_prefix  = "image",mask_save_prefix  = "mask",
-                    flag_multi_class = False,num_class = 2,save_to_dir = None,target_size = (256,256),seed = 1):
+                    flag_multi_class = False,num_class = 2,save_to_dir = None,target_size = (128,128),seed = 1):
     '''
     can generate image and mask at the same time
     use the same seed for image_datagen and mask_datagen to ensure the transformation for image and mask is the same

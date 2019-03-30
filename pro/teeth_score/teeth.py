@@ -27,7 +27,6 @@ class Img_info:
     def get_info(self, img_name, pro_path):
         pattern = r"(.*)-(.*)-(.*)-(.*)\.(.*)"
         info = list(re.findall(pattern, img_name)[0])
-        print(type(info), info)
         self.patient_name = info[0]
         self.operation_time = info[1]
         self.operation_name = info[2]
@@ -64,7 +63,8 @@ class Teeth:
 
     # / *清除私有成员数据 * /
     def clear(self):
-        print("clear data")
+        # print("clear data")
+        pass
 
     # / *读取照片 * /
     def read_image(self, image_path):
@@ -125,9 +125,10 @@ class Teeth:
         row, col = roi_img.shape[:2]
 
         # unet获得目标牙齿的bin
-        roi_img = cv2.resize(roi_img, (256, 256))
+        # roi_img = cv2.resize(roi_img, (256, 256))
         mark_bin = unet_extract_fillteeth(roi_img)
         mark_bin = cv2.resize(mark_bin, (col, row))
+        mark_bin = my_erode_dilate(mark_bin, 2, 2, (10,10))
 
         # 将roi图转换到全图
         self.dst_fill_mark[min_row:max_row, min_col:max_col] = mark_bin
@@ -275,7 +276,7 @@ class Teeth:
 
         # 未知的区域
         unknow = cv2.subtract(sure_bg, sure_fg)
-        cv2.imshow("unknow", unknow)
+        # cv2.imshow("unknow", unknow)
 
         # 标记
         ret, markers = cv2.connectedComponents(sure_bg)  # 将确定的背景标记为0,其他为非零整数

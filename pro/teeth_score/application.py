@@ -30,7 +30,7 @@ def main():
             time_order = int(sys.argv[3]) - 1
 
     filenames = os.listdir(dir)
-    print(filenames)
+    # print(filenames)
     for i in range(img_order, len(filenames)):
         current_path = os.path.join(dir, filenames[i])
         if os.path.isfile(current_path):
@@ -48,7 +48,6 @@ def main():
             teeth.img_info.get_info(img_names[j], dir)
             teeth.img_info.print_info()
             img_path = os.path.join(current_path, img_names[j])
-            print(img_path)
 
             teeth.clear()
             grade.clear()
@@ -56,23 +55,16 @@ def main():
                 print("照片格式未达到要求，不予评分")
                 break
 
-            start = time.time()
             # 提取整个牙齿、按个所补牙及剩余牙齿
             teeth.extract_all(current_path, img_names[j])
             teeth.img_show()
-            elapsed = (time.time() - start)
-            print("提取牙齿Time used:", elapsed, '\n')
 
-            start = time.time()
             # 根据提取的牙齿进行评分
             grade.score_all(teeth)
-            elapsed = (time.time() - start)
-            print("评分Time used:", elapsed, '\n')
 
             key = 0
             while key != 84:
                 key = cv.waitKey(0)
-            
                 if key == 27:
                     cv.destroyAllWindows()
                     return

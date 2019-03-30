@@ -11,8 +11,10 @@ import cv2
 import labelxml
 from imutils import paths
 
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
-def image_proc(img, target_size = (256,256)):
+
+def image_proc(img, target_size = (128,128)):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img = img / 255
     img = cv2.resize(img, target_size)
@@ -21,7 +23,7 @@ def image_proc(img, target_size = (256,256)):
     return img
 
 model = unet()
-model.load_weights("unet_membrane.hdf5")
+model.load_weights("unet_128.hdf5")
 print("unet模型已加载")
 
 def unet_extract_fillteeth(roi_image):
@@ -31,20 +33,19 @@ def unet_extract_fillteeth(roi_image):
     results = model.predict(pre_image)  # shape: (1, 256, 256, 1)
     # 网络输出图片(float型,范围0-1)
     predicted_image = results[0, :, :, 0]
-    print("\n[INFO] Predict Done")
+    # print("\n[INFO] Predict Done")
 
-    mark_uint8 = np.zeros((256,256), dtype = np.uint8)
-    mark_uint8[predicted_image>0.85] = 255
+    mark_uint8 = np.zeros((128,128), dtype = np.uint8)
+    mark_uint8[predicted_image>0.5] = 255
 
     # 标记滤波,查找最大外轮廓
     _, contours, hierarchy = cv2.findContours(mark_uint8.copy(),
                                               cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+    # 创建滤波后的标记模版
+    mark_filted = np.zeros(mark_uint8.shape[0:2], dtype=np.uint8)
     if contours:
         maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
-        cv2.drawContours(mark_uint8, [maxcnt], -1, 255, -1)  # 填充最大轮廓
-        # 创建滤波后的标记模版
-        mark_filted = np.zeros(mark_uint8.shape[0:2], dtype=np.uint8)
+        cv2.drawContours(mark_uint8, [maxcnt], -1, 255, -1) 
         # 在模版上画出最大轮廓(即滤除外部小轮廓,并填充内部小轮廓)
         cv2.drawContours(mark_filted, [maxcnt], -1, 255, -1)
 

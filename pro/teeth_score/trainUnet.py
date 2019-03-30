@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 # In[2]:
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 data_gen_args = dict(rotation_range=0.2,
@@ -32,12 +32,14 @@ myGene = trainGenerator(2,'data/membrane/train','image','label',data_gen_args,sa
 
 # model = unet()
 # 继续训练
-model = load_model('./unet_membrane.hdf5')
+model = load_model('./unet_128.hdf5')
+# model.load_weights("unet_128.hdf5")
 
-model_checkpoint = ModelCheckpoint('unet_membrane.hdf5', monitor='loss',verbose=1, save_best_only=True)
+model_checkpoint = ModelCheckpoint('unet_128.hdf5', monitor='loss',verbose=1, save_best_only=True)
 print("[INFO] train unet")
 # model.fit_generator(myGene,steps_per_epoch=2000,epochs=5,callbacks=[model_checkpoint])
-history = model.fit_generator(myGene,steps_per_epoch=1000,epochs=5,callbacks=[model_checkpoint])
+history = model.fit_generator(myGene, steps_per_epoch=500, epochs=5, callbacks=[model_checkpoint])
+# model.save_weights("unet_128.hdf5")
 
 
 # list all data in history
