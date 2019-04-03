@@ -3,15 +3,17 @@
 # 
 # 龋齿识别,针对术中图片
 
-from model import *
-from data import *
+from U_net.code_python.model import *
 
 import os
 import cv2
-import labelxml
 from imutils import paths
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+TARGET_INPUT_SIZE = (128, 128)
+MODEL_INPUT_SIZE = TARGET_INPUT_SIZE + (1, )
+PATH_MODEL_HDF5 = "./U_net/model_hdf5/unet_128.hdf5"
 
 
 def image_proc(img, target_size = (128,128)):
@@ -22,10 +24,10 @@ def image_proc(img, target_size = (128,128)):
     img = np.reshape(img, (1,)+img.shape)
     return img
 
-model = unet()
-model.load_weights("unet_128.hdf5")
-print("unet模型已加载")
 
+model = unet(input_size = MODEL_INPUT_SIZE)
+model.load_weights(PATH_MODEL_HDF5)
+print("unet模型已加载")
 def unet_extract_fillteeth(roi_image):
     # 获得网络的输入图片
     pre_image = image_proc(roi_image)
@@ -36,7 +38,7 @@ def unet_extract_fillteeth(roi_image):
     # print("\n[INFO] Predict Done")
 
     mark_uint8 = np.zeros((128,128), dtype = np.uint8)
-    mark_uint8[predicted_image>0.5] = 255
+    mark_uint8[predicted_image>0.7] = 255
 
     # 标记滤波,查找最大外轮廓
     _, contours, hierarchy = cv2.findContours(mark_uint8.copy(),

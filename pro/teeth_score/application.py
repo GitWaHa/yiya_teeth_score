@@ -61,6 +61,7 @@ def main():
 
             # 根据提取的牙齿进行评分
             grade.score_all(teeth)
+            print(" ")
 
             key = 0
             while key != 84:
@@ -75,7 +76,7 @@ if __name__ == '__main__':
     start = time.time()
     main()
     run_time = time.time() - start
-    print("评分Time used:", run_time, '\n')
+    print("all Time used:", run_time, '\n')
     print("end of main")
 
 

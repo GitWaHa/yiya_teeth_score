@@ -347,12 +347,12 @@ class Teeth:
         self.get_fill_teeth_site(txt_path, self.img_info.operation_time)
         self.extract_all_teeth()
         run_time = time.time() - start
-        print("所有牙齿 Time used:", run_time, '\n')
+        print("所有牙齿 Time used:", run_time)
 
         start = time.time()
         self.find_fill_teeth(self.dst_all_mark, self.site, self.radius)
         run_time = time.time() - start
-        print("单个牙齿 Time used:", run_time, '\n')
+        print("单个牙齿 Time used:", run_time)
         # if self.img_info.operation_time == '术后':
         self.dst_other_mark = self.find_neighbor_teeth(self.dst_all_mark, self.dst_fill_mark, self.site, self.radius)
         return
