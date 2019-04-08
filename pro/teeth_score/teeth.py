@@ -295,7 +295,7 @@ class Teeth:
         # row, col = roi_img.shape[:2]
 
         # # unet获得目标牙齿的bin
-        # roi_img = cv2.resize(roi_img, (256, 256))
+        # roi_img = cv2.resize(roi_img, (128, 128))
         # mark_bin = unet_extract_fillteeth(roi_img)
         # mark_bin = cv2.resize(mark_bin, (col, row))
 

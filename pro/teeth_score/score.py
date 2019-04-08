@@ -20,7 +20,7 @@ class Teeth_Grade():
         self.bb3 = Indicators_BB3()
         self.bb4 = Indicators_BB4()
         self.grade = 0
-        self.print_flag = 0
+        self.print_flag = 1
 
     def clear(self):
         self.aa1.clear()
@@ -420,20 +420,30 @@ class Teeth_Grade():
             fill_S = S[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]
             other_H = H[roi_row_other:roi_row_other+roi_h_other, roi_col_other:roi_col_other+roi_w_other]
             other_S = S[roi_row_other:roi_row_other+roi_h_other, roi_col_other:roi_col_other+roi_w_other]
+            oneself_other_mark = np.zeros((img_rows,img_cols), np.uint8)
+            oneself_other_mark[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w] = 255
+            oneself_other_mark = my_erode_dilate(oneself_other_mark, 0, 5, (10,10))
+            oneself_other_mark[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w] = 0
+            oneself_other_mark[fill_mark == 0] = 0
+            cv2.imshow("oneself_other_mark", oneself_other_mark)
             # # 计算均值
             fill_h_avr = np.mean(fill_H[fill_mark[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]!=0])
             fill_s_avr = np.mean(fill_S[fill_mark[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]!=0])
-
             other_h_avr = np.mean(other_H[other_mark[roi_row_other:roi_row_other+roi_h_other, roi_col_other:roi_col_other+roi_w_other]!=0])
             other_s_avr = np.mean(other_S[other_mark[roi_row_other:roi_row_other+roi_h_other, roi_col_other:roi_col_other+roi_w_other]!=0])
-            
+            oneself_other_h_avr = np.mean(H[oneself_other_mark == 255])
+            oneself_other_s_avr = np.mean(S[oneself_other_mark == 255])
             # 根据均值方差的差值评分，差值越大分越低
             if self.print_flag == 1:
-                print('BB3[INFO] 均值差', abs(fill_h_avr-other_h_avr), abs(fill_s_avr-other_s_avr))
+                print('BB3[INFO] 相邻牙齿色差', abs(fill_h_avr-other_h_avr), abs(fill_s_avr-other_s_avr))
+                print('BB3[INFO] 自己牙齿色差', abs(fill_h_avr-oneself_other_h_avr), abs(fill_s_avr-oneself_other_s_avr))
             h_avr = my_limit(5-(abs(fill_h_avr-other_h_avr)/self.bb3.MAX_AVR_DIFF_H)*5, 0, 5)
             s_avr = my_limit(5-(abs(fill_s_avr-other_s_avr)/self.bb3.MAX_AVR_DIFF_S)*5, 0, 5)
+            oneself_h_avr = my_limit(5-(abs(fill_h_avr-oneself_other_h_avr)/self.bb3.MAX_AVR_DIFF_H)*5, 0, 5)
+            oneself_s_avr = my_limit(5-(abs(fill_s_avr-oneself_other_s_avr)/self.bb3.MAX_AVR_DIFF_S)*5, 0, 5)
 
             self.bb3.other_diff = h_avr + s_avr
+            self.bb3.oneself_diff = oneself_h_avr + oneself_s_avr
 
         self.roi_site = 0, 0, 0, 0
         self.bb3.sum()

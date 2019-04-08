@@ -38,7 +38,7 @@ def unet_extract_fillteeth(roi_image):
     # print("\n[INFO] Predict Done")
 
     mark_uint8 = np.zeros((128,128), dtype = np.uint8)
-    mark_uint8[predicted_image>0.7] = 255
+    mark_uint8[predicted_image>0.8] = 255
 
     # 标记滤波,查找最大外轮廓
     _, contours, hierarchy = cv2.findContours(mark_uint8.copy(),
