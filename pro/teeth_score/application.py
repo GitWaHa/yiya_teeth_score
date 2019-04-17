@@ -1,7 +1,6 @@
 #!/usr/bin/python3.6
 # coding=utf-8
 
-# import matplotlib.pyplot as plt
 import time
 import cv2 as cv
 from teeth import *
@@ -43,7 +42,7 @@ def main():
             print("此文件夹内文件命名不符合要求，不予评分")
             continue
 
-        # 对三证照片分割评分
+        # 对三张照片分割评分
         for j in range(time_order, 3):
             teeth.img_info.get_info(img_names[j], dir)
             teeth.img_info.print_info()
@@ -57,19 +56,21 @@ def main():
 
             # 提取整个牙齿、按个所补牙及剩余牙齿
             teeth.extract_all(current_path, img_names[j])
-            teeth.img_show()
+            # teeth.img_show()
 
             # 根据提取的牙齿进行评分
             grade.score_all(teeth)
             print(" ")
 
-            key = 0
-            while key != 84:
-                key = cv.waitKey(0)
-                if key == 27:
-                    cv.destroyAllWindows()
-                    return
+            # key = 0
+            # while key != 84:
+            #     key = cv.waitKey(0)
+            #     if key == 27:
+            #         cv.destroyAllWindows()
+            #         return
+        # cv.destroyAllWindows()
         time_order = 0
+        
 
 
 if __name__ == '__main__':

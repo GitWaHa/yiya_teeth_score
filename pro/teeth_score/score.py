@@ -169,6 +169,7 @@ class Teeth_Grade():
             self.aa2.area_ratio = my_limit(self.aa2.AREA_RATIO_SCORE - 
                                            math.ceil(ratio_diff/self.aa2.AREA_RATIO_SUBTRACT_RATIO)*self.aa2.AREA_RATIO_SUBTRACT,
                                            0, self.aa2.AREA_RATIO_SCORE)  # 按比例扣分
+            # ××××××××××××××××××××××××××××× 反作用到AA1指标 ×××××××××××××××××××××××××
             self.aa1.contains_neighbor *= (self.aa2.area_ratio/self.aa2.AREA_RATIO_SCORE) * self.aa1.AREA_K
             self.aa1.sum()
 
@@ -246,31 +247,46 @@ class Teeth_Grade():
         return 1
 
     def score_bb1(self, gray_img, mark_img, operation_time):
-        # if operation_time == '术前':
-        #     return
+        if operation_time == '术前':
+            return
         if operation_time == '术后':
             self.bb1.grade = self.bb1.BLACK_DEPTH_SCORE + self.bb1.BLACK_SIZE_SCORE
             return
+
         caries_point_num = 0                                 # 黑点个数
-        caries_point_thresh = self.bb1.THR_GRAY              # 灰度阈值
+        caries_point_thresh = np.mean(gray_img[mark_img == 255])-60              # 灰度阈值
         black_level_score = self.bb1.BLACK_DEPTH_SCORE       # 黑色深浅得分
         black_num_score = self.bb1.BLACK_SIZE_SCORE          # 黑色大小得分
         min_gray_value = 255                                 # 牙齿区域最小灰度值
 
         (height, width) = gray_img.shape[0:2]
-        element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
-        mark_img = cv2.erode(mark_img, element)
+
+        if self.bb3.roi_site[0] != -1:
+            col_k, row_k, w_k, h_k = self.bb3.roi_site
+            img, contours, hierarchy = cv2.findContours(mark_img.copy(),
+                                                        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
+                col, row, w, h = cv2.boundingRect(maxcnt)
+                roi_col = int(col + col_k*w)
+                roi_row = int(row + row_k*h)
+                roi_w = int(w_k*w)
+                roi_h = int(h_k*h)
+
 
         # 计算黑点数量
+        print(np.mean(gray_img[mark_img == 255])-60)
         caries_point_num = np.sum(gray_img[mark_img == 255] < caries_point_thresh)
 
         # 计算最下灰度值
         min_gray_value = np.min(gray_img[mark_img == 255])
 
         # 可视化龋齿黑点
-        # black_point_show = np.zeros((height, width), dtype=np.uint8)
-        # black_point_show[(mark_img == 255) & (gray_img < caries_point_thresh)] = 255
-        # cv2.imshow('black_point_show', black_point_show)
+        temp = np.zeros((height, width), dtype=np.uint8)
+        temp[(mark_img == 255) & (gray_img < caries_point_thresh)] = 255 
+        black_point_show = np.zeros((height, width), dtype=np.uint8)
+        black_point_show[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w] = temp[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]
+        cv2.imshow('black_point_show', black_point_show)
 
         # 根据黑点数量计算黑色大小得分
         # 每100个黑点减一分,需根据输入图片大小调整
@@ -298,34 +314,10 @@ class Teeth_Grade():
     def score_bb2(self, fill_mark, operation_time):
         if operation_time == '术前':
             return
-        elif operation_time == '术后':
-            self.bb2.grade = 20
+        elif operation_time == '术中':
             return
 
-        img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
-                                                    cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
-            col, row, w, h = cv2.boundingRect(maxcnt)
-
-            fill_bin = fill_mark[row:row + h, col:col + w]
-            fill_bin = cv2.resize(fill_bin, (100, 100))
-
-            test = np.zeros(fill_bin.shape, np.uint8)
-
-            dst = cv2.cornerHarris(fill_bin, 2, 3, 0.04)
-            dst = cv2.dilate(dst, None)                   # 图像膨胀
-            test[dst > 0.3*dst.max()] = 255
-
-            # 角点可视化
-            # cv2.imshow("test", test)
-
-            img, contours, hierarchy = cv2.findContours(test,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            if self.print_flag == 1:
-                print("BB2[INFO] 角点个数：", len(contours))
-            self.bb2.edge_shape = 10 - my_limit(len(contours) - 4, 0, 10)
-            self.bb2.black_size = 5
+        self.bb2.oneself_diff = self.bb3.oneself_diff*2
         self.bb2.sum()
         return
 
@@ -337,21 +329,30 @@ class Teeth_Grade():
         fill_image = np.zeros(src_image.shape, np.uint8)
         fill_image[fill_mark == 255] = src_image[fill_mark == 255]
 
+
         thr = my_otsu_hsv(fill_image, 100, 160, 'S')
         mark = my_threshold_hsv(fill_image, thr, 'S')
-        mark = my_erode_dilate(mark, 4, 4, (5, 5))
+
+        mark = my_erode_dilate(mark, 2, 2, (5, 5), order = 0)
+        mark = my_erode_dilate(mark, 4, 4, (5, 5), order = 1)
+
         img, contours, hierarchy = cv2.findContours(mark.copy(),
                                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         max_val = 0
         max_n = 0
         for i in range(0,len(contours)):
+            maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
+            max_area_contour = cv2.contourArea(maxcnt)
             mark = np.zeros(fill_mark.shape[0:2], dtype=np.uint8)
             cv2.drawContours(mark, [contours[i]], -1, 255, -1)
-            s_val = np.mean(S[mark==255])
-            if s_val > max_val:
-                max_val = s_val
-                max_n = i
+            area_contour = cv2.contourArea(contours[i])
+            # print("area_contour:", area_contour, "max_area_contour:", max_area_contour*0.1)
+            if area_contour > max_area_contour*0.1:
+                s_val = np.mean(S[mark==255])
+                if s_val > max_val:
+                    max_val = s_val
+                    max_n = i
 
             mark = np.zeros(fill_mark.shape[0:2], dtype=np.uint8)
             cv2.drawContours(mark, [contours[max_n]], -1, 255, -1)
@@ -359,8 +360,9 @@ class Teeth_Grade():
             # cv2.imshow("mark", mark)
 
             # 可视化
-            # fill_image[mark == 0] = (0, 0, 0)
-            # cv2.imshow("fill_roi", fill_image)
+            fill_roi = np.zeros(src_image.shape, np.uint8)
+            fill_roi[row:row+h,col:col+w] = src_image[row:row+h,col:col+w]
+            cv2.imshow("mark", fill_roi)
         if contours:
             return col, row, w, h
         else:
@@ -368,6 +370,21 @@ class Teeth_Grade():
 
     def score_bb3(self, src_image, fill_mark, other_mark, operation_time):
         if operation_time == '术前':
+            roi_col, roi_row, roi_w, roi_h = self.score_bb3_get_roi(src_image, fill_mark)
+            if roi_col != -1:
+                
+                img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
+                                                        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                if contours:
+                    maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
+                    col, row, w, h = cv2.boundingRect(maxcnt)
+                    col_k = abs((roi_col - col)/w)
+                    row_k = abs((roi_row - row)/h)
+                    w_k = abs(roi_w / w)
+                    h_k = abs(roi_h / h)
+                    self.bb3.roi_site = col_k, row_k, w_k, h_k
+            else:
+                self.bb3.roi_site = -1, -1, -1, -1
             return
         elif operation_time == '术中':
             roi_col, roi_row, roi_w, roi_h = self.score_bb3_get_roi(src_image, fill_mark)
@@ -383,6 +400,8 @@ class Teeth_Grade():
                     w_k = abs(roi_w / w)
                     h_k = abs(roi_h / h)
                     self.bb3.roi_site = col_k, row_k, w_k, h_k
+            # else:
+            #     self.bb3.roi_site = -1, -1, -1, -1
             return
 
         if self.bb3.roi_site[0] != -1:
@@ -407,13 +426,16 @@ class Teeth_Grade():
                 roi_w_other = int(w_k*w)
                 roi_h_other = int(h_k*h)
 
-            cv2.rectangle(src_image, (roi_col, roi_row), (roi_col+roi_w, roi_row+roi_h), (255,0,0), 1)
-            cv2.rectangle(src_image, (roi_col_other, roi_row_other), (roi_col_other+roi_w_other, roi_row_other+roi_h_other), (255,255,0), 1)
-            cv2.imshow("rectangle", src_image)
+            src_image_copy = src_image.copy()
+            cv2.rectangle(src_image_copy, (roi_col, roi_row), (roi_col+roi_w, roi_row+roi_h), (255,0,0), 1)
+            cv2.rectangle(src_image_copy, (roi_col_other, roi_row_other), (roi_col_other+roi_w_other, roi_row_other+roi_h_other), (255,255,0), 1)
+            cv2.imshow("rectangle", src_image_copy)
 
             hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
             img_rows, img_cols = hsv_image.shape[:2]
             H, S, V = cv2.split(hsv_image)
+            # cv2.imshow("H", H)
+            # cv2.imshow("S", S)
 
             # print(np.mean([0,0,1,1]&[255,255,2,2]))
             fill_H = H[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]
@@ -505,10 +527,11 @@ class Teeth_Grade():
         if is_ok == 0:
             print("！！！！！！！牙齿面积不符合要求直接退出！！！！！！！")
             return 0
-        self.score_bb1(teeth_pro.src_gray_image, teeth_pro.dst_fill_mark,
+        # 先评分BB3，再评分BB2/bb1
+        self.score_bb3(teeth_pro.src_image, teeth_pro.dst_fill_mark, teeth_pro.dst_other_mark,
                        teeth_pro.img_info.operation_time)
         self.score_bb2(teeth_pro.dst_fill_mark, teeth_pro.img_info.operation_time)
-        self.score_bb3(teeth_pro.src_image, teeth_pro.dst_fill_mark, teeth_pro.dst_other_mark,
+        self.score_bb1(teeth_pro.src_gray_image, teeth_pro.dst_fill_mark,
                        teeth_pro.img_info.operation_time)
         self.score_bb4(teeth_pro.src_gray_image, teeth_pro.dst_fill_mark,
                        teeth_pro.img_info.operation_time, teeth_pro.img_info.operation_name)
@@ -521,8 +544,8 @@ class Teeth_Grade():
         # self.aa2.print()
         # self.aa3.print()
         # self.bb1.print()
-        # self.bb2.print()
-        # self.bb3.print()
+        self.bb2.print()
+        self.bb3.print()
         # self.bb4.print()
         return 1
 

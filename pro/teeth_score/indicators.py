@@ -145,7 +145,7 @@ BB1（龋坏清干净否，针对术中20分）：
 '''
 class Indicators_BB1():   # （10分）
     def __init__(self):
-        self.THR_GRAY = 130
+        self.THR_GRAY = 60
 
         self.BLACK_DEPTH_SCORE = 10             # 黑色深浅 分数
         self.BLACK_DEPTH_SUBTRACT = 1           # 黑色深浅 扣分值
@@ -184,22 +184,19 @@ BB2（制备洞型后形态，针对术中20分）：
 '''
 class Indicators_BB2():   # （10分）
     def __init__(self):
-        self.edge_shape = 0.0                # 边缘形状是否圆润（10分）
-        self.black_size = 0.0                # 黑色大小（10分）
+        self.oneself_diff = 0.0                # 与自己牙齿色差，即是否平滑过渡(20)
         self.grade = 0
 
     def clear(self):
-        self.edge_shape = 0.0
-        self.black_size = 0.0
+        self.oneself_diff = 0.0
         self.grade = 0
 
     def sum(self):
-        self.grade = round(self.edge_shape + self.black_size)
+        self.grade = round(self.oneself_diff)
 
     def print(self):
         print("/**************** BB2 ******************/")
-        print("BB2边缘形状得分：", self.edge_shape)
-        print("BB2有无飞边得分：", self.black_size)
+        print("BB2与自己牙齿色差得分：", self.oneself_diff)
         print("BB2总分数：", self.grade)
 
 

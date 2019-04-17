@@ -1,7 +1,7 @@
 #!/usr/bin/python3.6
 # coding=utf-8 
  
-# from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 import copy
@@ -13,7 +13,7 @@ from unet_extract import *
 
 TEETH_IMAGE_SET_ROW = 480
 TEETH_IMAGE_SET_COL = 480
-
+label_flag = 0
 
 class Img_info:
     def __init__(self):
@@ -333,6 +333,13 @@ class Teeth:
         self.read_image(img_path)
         self.resize(TEETH_IMAGE_SET_ROW, TEETH_IMAGE_SET_ROW)
 
+        hsv_image = cv2.cvtColor(self.src_image, cv2.COLOR_BGR2HSV)
+        H, S, V = cv2.split(hsv_image)
+        cv2.imshow("S", H)
+        cv2.setMouseCallback('S', self.get_point_value, H)
+        # cv2.imshow("gray", self.src_gray_image)
+        # cv2.setMouseCallback('gray', self.get_point_value, self.src_gray_image)
+
         # 调试获取坐标
         # cv2.imshow("get_roi", self.src_image)
         # cv2.setMouseCallback('get_roi', self.get_roi, (txt_path, self.img_info.operation_time))
@@ -387,6 +394,15 @@ class Teeth:
     def img_show(self):
         fill_teeth = self.bin_to_rgb(self.dst_fill_mark)
         all_teeth = self.bin_to_rgb(self.dst_all_mark)
+        cv2.imshow("dst_all_mark", self.dst_all_mark)
+        # col_num_list = []
+        # x_list = [x for x in range(self.dst_all_mark.shape[1])]
+        # for c in range(self.dst_all_mark.shape[1]):
+        #     col_num_list.append(np.sum(self.dst_all_mark[:,c]==255))
+
+        # plt.plot(x_list,col_num_list,'g-s') 
+        # plt.show()
+
         other_teeth = self.bin_to_rgb(self.dst_other_mark)
         cv2.imshow("原图", self.src_image)
         cv2.imshow("fill_teeth", fill_teeth)
@@ -451,6 +467,18 @@ class Teeth:
             cv2.rectangle(image_copy, (PointStart[0], PointStart[1]), (PointEnd[0], PointEnd[1]), (0, 255, 0),
                           1)  # 根据x坐标画正方形
             cv2.imshow('get_roi', image_copy)
+        return
+
+    # / * 获得某个位置的像素值，调试时使用 * /
+    def get_point_value(self, event, x, y, flags, param):
+        global label_flag
+        if event == cv2.EVENT_LBUTTONDOWN:
+            label_flag = 1  # 左键按下
+        elif event == cv2.EVENT_LBUTTONUP and label_flag == 1:  # 左键按下后检测弹起
+            label_flag = 2  # 左键弹起
+        elif event == cv2.EVENT_MOUSEMOVE and label_flag == 1:  # 左键按下后获取当前坐标
+            point_col, point_row = x, y  # 记录当前位置
+            print("像素值：", param[point_row,point_col])
         return
 
 
@@ -575,14 +603,18 @@ def my_fill_hole(bin_image):
     return bin_image
 
 
-def my_erode_dilate(bin_image, erode_num, dilate_num, size):
+def my_erode_dilate(bin_image, erode_num, dilate_num, size, order = 0):
     element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, size)
-
-    for i in range(0, erode_num):
-        bin_image = cv2.erode(bin_image, element)
-    for i in range(0, dilate_num):
-        bin_image = cv2.dilate(bin_image, element)
-
+    if order == 0:
+        for i in range(0, erode_num):
+            bin_image = cv2.erode(bin_image, element)
+        for i in range(0, dilate_num):
+            bin_image = cv2.dilate(bin_image, element)
+    else:
+        for i in range(0, dilate_num):
+            bin_image = cv2.dilate(bin_image, element)
+        for i in range(0, erode_num):
+            bin_image = cv2.erode(bin_image, element)
     return bin_image
 
 
