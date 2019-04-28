@@ -56,18 +56,18 @@ def main():
 
             # 提取整个牙齿、按个所补牙及剩余牙齿
             teeth.extract_all(current_path, img_names[j])
-            # teeth.img_show()
+            teeth.img_show()
 
             # 根据提取的牙齿进行评分
             grade.score_all(teeth)
             print(" ")
 
-            # key = 0
-            # while key != 84:
-            #     key = cv.waitKey(0)
-            #     if key == 27:
-            #         cv.destroyAllWindows()
-            #         return
+            key = 0
+            while key != 84:
+                key = cv.waitKey(0)
+                if key == 27:
+                    cv.destroyAllWindows()
+                    return
         # cv.destroyAllWindows()
         time_order = 0
         

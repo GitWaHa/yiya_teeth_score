@@ -22,6 +22,9 @@ model = unet(input_size = MODEL_INPUT_SIZE)
 model.load_weights(PATH_MODEL_HDF5)
 
 results = model.predict_generator(testGene,imagenum_test,verbose=1)
+
+# model.evaluate_generator(testGene, steps = 30)
+# print("scores", x, y)
 print(results.shape)
 saveResult("../data/test_output", test_paths, results)
 

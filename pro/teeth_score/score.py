@@ -479,6 +479,9 @@ class Teeth_Grade():
             return
         elif operation_time == '术前':
             return
+        std_img = io.imread('./BB4_standard_template/test.png')
+        # std_img = np.rot90(std_img)
+        cv2.imshow('std_img', std_img)
 
         img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
                                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -503,18 +506,36 @@ class Teeth_Grade():
                     if fill_bin[r][c] == 255 and edge_output[r][c] == 255:
                         grain_show[r][c] = 255
                         gap_point_num += 1
+
+            fill_canny = np.zeros((200,200), dtype=np.uint8)
+            fill_canny[50:150,50:150] = grain_show
             
-            res = cv2.matchTemplate(grain_show, grain_show, cv2.TM_CCOEFF_NORMED)
-            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+            # 旋转90度，再次匹配，取最大值
+            max_val_list = []
+            for i in range(4):
+                res = cv2.matchTemplate(fill_canny, std_img, cv2.TM_CCOEFF_NORMED)
+                min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+                std_img = np.rot90(std_img)
+                print(max_val)
+                max_val_list.append(max_val)
+            max_val = np.max(max_val_list)
             if self.print_flag == 1:
                 print("BB4[INFO]:沟壑匹配度", max_val)
             # 纹路可视化
-            # cv2.imshow("纹路", grain_show)
+            cv2.imshow("纹路", fill_canny)
+            # cv2.setMouseCallback('纹路', draw_num, grain_show)
+            # key = 0
+            # while key != ord('s'):
+            #     key = cv2.waitKey(0)
+            #     if key == 27:
+            #         cv2.destroyAllWindows()
+            #         return
+            # io.imsave("./BB4_standard_template/test.png",grain_show)
 
             if max_val >= self.bb4.GAP_SUBTRACT_START:
                 texture_scores = self.bb4.GAP_SCORE
             else:
-                texture_scores = int((self.bb4.GAP_SUBTRACT_START-max_val / self.bb4.GAP_SUBTRACT_RATIO)*self.bb4.GAP_SUBTRACT - 0.5)
+                texture_scores = self.bb4.GAP_SCORE - int(((self.bb4.GAP_SUBTRACT_START-max_val) / self.bb4.GAP_SUBTRACT_RATIO)*self.bb4.GAP_SUBTRACT)
 
             self.bb4.gap = texture_scores
         self.bb4.sum()
@@ -546,7 +567,7 @@ class Teeth_Grade():
         # self.bb1.print()
         self.bb2.print()
         self.bb3.print()
-        # self.bb4.print()
+        self.bb4.print()
         return 1
 
     def creat_score_txt(self, img_info):
@@ -569,3 +590,19 @@ class Teeth_Grade():
             f.write(str(self.bb4.grade) + "-" + str(self.grade))
         f.close()
         return
+
+
+def draw_num(event, x, y, flags, param):
+    global label_flag
+    pen_w = 5
+    pt = (x, y)
+    prev_pt = pt
+    if event == cv2.EVENT_LBUTTONDOWN:
+        label_flag = 1 # 左键按下
+    elif event == cv2.EVENT_LBUTTONUP:
+        label_flag = 0 # 左键放开
+        # prev_pt = None
+    if label_flag == 1:
+        param[y-pen_w:y+pen_w,x-pen_w:x+pen_w] = 0
+    cv2.imshow('纹路', param)
+
