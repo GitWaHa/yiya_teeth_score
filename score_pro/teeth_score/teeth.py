@@ -25,17 +25,30 @@ class Img_info:
         self.operation_name = 0
         self.doctor_name = 0
         self.img_type = 0
-        self.pro_path = 0
+        self.upload_time = 0
+        self.pro_path = 'D:/WorkingFolder/Git/teeth_pro/score_pro/JPG_TEST'
 
-    def get_info(self, img_name, pro_path):
-        pattern = r"(.*)-(.*)-(.*)-(.*)\.(.*)"
-        info = list(re.findall(pattern, img_name)[0])
-        self.patient_name = info[0]
-        self.operation_time = info[1]
-        self.operation_name = info[2]
-        self.doctor_name = info[3]
-        self.img_type = info[4]
-        self.pro_path = pro_path
+    def get_info(self, img_dir, use_deploy=0):
+        if use_deploy == 0:
+            pattern = r"(.*)-(.*)-(.*)-(.*)-(.*)\.(.*)"
+            info = list(re.findall(pattern, img_dir)[0])
+            self.upload_time = info[0]
+            self.patient_name = info[1]
+            self.operation_time = info[2]
+            self.operation_name = info[3]
+            self.doctor_name = info[4]
+            self.img_type = info[5]
+        else:
+            str_img_path = img_dir.split("/")
+            img_name = str_img_path[len(str_img_path)-1]
+            pattern = r"(.*)-(.*)-(.*)-(.*)-(.*)\.(.*)"
+            info = list(re.findall(pattern, img_name)[0])
+            self.upload_time = info[0]
+            self.patient_name = info[1]
+            self.operation_time = info[2]
+            self.operation_name = info[3]
+            self.doctor_name = info[4]
+            self.img_type = info[5]
 
         return
 
@@ -119,11 +132,17 @@ class Teeth:
         return re_dst_image
 
     # / *分割单个患牙 * /
-    def find_fill_teeth(self, all_mark, site, radius):
-        min_row = int(my_limit(site[0] - radius, 0, self.src_image.shape[0]))
-        max_row = int(my_limit(site[0] + radius, 0, self.src_image.shape[0]))
-        min_col = int(my_limit(site[1] - radius, 0, self.src_image.shape[1]))
-        max_col = int(my_limit(site[1] + radius, 0, self.src_image.shape[1]))
+    def find_fill_teeth(self, all_mark, site, radius=0):
+        if radius!=0:
+            min_row = int(my_limit(site[0] - radius, 0, self.src_image.shape[0]))
+            max_row = int(my_limit(site[0] + radius, 0, self.src_image.shape[0]))
+            min_col = int(my_limit(site[1] - radius, 0, self.src_image.shape[1]))
+            max_col = int(my_limit(site[1] + radius, 0, self.src_image.shape[1]))
+        else:
+            min_row = int(my_limit(site[0], 0, self.src_image.shape[0]))
+            max_row = int(my_limit(site[2], 0, self.src_image.shape[0]))
+            min_col = int(my_limit(site[1], 0, self.src_image.shape[1]))
+            max_col = int(my_limit(site[3], 0, self.src_image.shape[1]))
 
         # dst_all_rgb = self.bin_to_rgb(all_mark)
         roi_img = self.src_image[min_row:max_row, min_col:max_col]
@@ -139,16 +158,22 @@ class Teeth:
         self.dst_fill_mark[min_row:max_row, min_col:max_col] = mark_bin
         return
 
-    def find_neighbor_info(self, dst_all_mark, dst_fill_mark, site, radius):
+    def find_neighbor_info(self, dst_all_mark, dst_fill_mark, site, radius=-1):
         self.neighbor_flag = 0
 
         src_row, src_col = dst_all_mark.shape[:2]
 
         # 坐标转换
-        min_row = int(my_limit(site[0] - radius, 0, src_row))
-        max_row = int(my_limit(site[0] + radius, 0, src_row))
-        min_col = int(my_limit(site[1] - radius, 0, src_col))
-        max_col = int(my_limit(site[1] + radius, 0, src_col))
+        if radius != -1:
+            min_row = int(my_limit(site[0] - radius, 0, src_row))
+            max_row = int(my_limit(site[0] + radius, 0, src_row))
+            min_col = int(my_limit(site[1] - radius, 0, src_col))
+            max_col = int(my_limit(site[1] + radius, 0, src_col))
+        else:
+            min_row = int(my_limit(site[0], 0, src_row))
+            max_row = int(my_limit(site[2], 0, src_row))
+            min_col = int(my_limit(site[1], 0, src_col))
+            max_col = int(my_limit(site[3], 0, src_col))
 
         # 区域可视化
         # roi = dst_all_mark[min_row:max_row, min_col:max_col]
@@ -197,17 +222,23 @@ class Teeth:
             self.neighbor_flag = 3
 
     # / *将全部牙齿与单个患牙相减，得到除患牙外的其他牙齿 * /
-    def find_neighbor_teeth(self, all_mark, fill_mark, site, radius):
-        self.find_neighbor_info(self.dst_all_mark, self.dst_fill_mark, self.site, self.radius)
+    def find_neighbor_teeth(self, all_mark, fill_mark, site, radius = -1):
+        self.find_neighbor_info(all_mark, fill_mark, site, radius)
 
         if self.neighbor_flag == 0:
             return 0, False
 
         img_rows, img_cols = all_mark.shape[:2]
-        other = np.zeros((img_rows, img_cols), dtype = np.uint8)
         dst_all_rgb = self.bin_to_rgb(all_mark)
 
-        ra = radius
+        if radius != -1:
+            ra = radius
+        else:
+            min_row = int(my_limit(site[0], 0, self.src_image.shape[0]))
+            max_row = int(my_limit(site[2], 0, self.src_image.shape[0]))
+            min_col = int(my_limit(site[1], 0, self.src_image.shape[1]))
+            max_col = int(my_limit(site[3], 0, self.src_image.shape[1]))
+            ra = abs(max_col - min_col)//2
         site_c = site[1]
         site_r = site[0]
 
@@ -233,7 +264,6 @@ class Teeth:
                     if val - min_val >5:
                         break
                     site_c -= 1
-
                 # ra = (col - min_c)//2
                 site_c = (min_c + col)//2
             elif self.neighbor_flag == 2:
@@ -261,9 +291,9 @@ class Teeth:
                 row_list.append(r)
         if len(row_list):
             site_r = int(np.mean(row_list))
-            print(site_r)
+            # print(site_r)
         else:
-            print("寻找邻牙位置error")
+            print("error:寻找邻牙位置")
             return 0, False
 
 
@@ -296,11 +326,12 @@ class Teeth:
         markers = cv2.watershed(dst_all_rgb, markers)
         # cv2.imshow("dst_all_rgb", dst_all_rgb)
 
+        other = np.zeros((img_rows, img_cols), dtype = np.uint8)
         other[markers == 2] = 255
 
         other = my_erode_dilate(other, 4, 4, (5, 5)) 
 
-        # unet 提取相邻牙齿
+        # # unet 提取相邻牙齿
         # roi_img = dst_all_rgb[min_row:max_row, min_col:max_col]
         # row, col = roi_img.shape[:2]
 
@@ -336,9 +367,10 @@ class Teeth:
         return 1
 
     # / *提取所有需要的牙齿，包括单个患牙，全部牙齿，其他牙齿 * /
-    def extract_all(self, current_path, img_name):
-        img_path = os.path.join(current_path, img_name)
-        txt_path = os.path.join(current_path, "site.txt")
+    def extract_all(self, use_deploy, current_path=0, img_name=0, img_path=0, site=0):
+        if use_deploy == 0:
+            img_path = os.path.join(current_path, img_name)
+            txt_path = os.path.join(current_path, "site.txt")
 
         self.read_image(img_path)
         self.resize(TEETH_IMAGE_SET_ROW, TEETH_IMAGE_SET_ROW)
@@ -363,44 +395,62 @@ class Teeth:
         #         cv2.destroyAllWindows()
         #         return
 
-        start = time.time()
-        self.get_fill_teeth_site(txt_path, self.img_info.operation_time)
-        self.extract_all_teeth()
-        run_time = time.time() - start
-        # print("所有牙齿 Time used:", run_time)
+        if use_deploy == 0:
+            self.get_fill_teeth_site(use_deploy, self.img_info.operation_time, txt_path=txt_path)
+        else:
+            self.get_fill_teeth_site(use_deploy, self.img_info.operation_time, site_str=site)
 
-        start = time.time()
-        self.find_fill_teeth(self.dst_all_mark, self.site, self.radius)
-        run_time = time.time() - start
-        # print("单个牙齿 Time used:", run_time)
+        self.extract_all_teeth()
+
+        if use_deploy == 0:
+            self.find_fill_teeth(self.dst_all_mark, self.site, self.radius)
+        else:
+            self.find_fill_teeth(self.dst_all_mark, self.site)
+
         if self.img_info.operation_time == '术后':
-            self.dst_other_mark, self.neighbor_ok = self.find_neighbor_teeth(self.dst_all_mark, self.dst_fill_mark, self.site, self.radius)
+            if use_deploy == 0:
+                self.dst_other_mark, self.neighbor_ok = self.find_neighbor_teeth(self.dst_all_mark, 
+                                                                                 self.dst_fill_mark, 
+                                                                                 self.site, self.radius)
+            else:
+                self.dst_other_mark, self.neighbor_ok = self.find_neighbor_teeth(self.dst_all_mark, 
+                                                                                 self.dst_fill_mark, 
+                                                                                 self.site)
         return
 
     # / *根据site.txt文件过得所补牙位置信息 * /
-    def get_fill_teeth_site(self, txt_path, time):
-        try:
-            f = open(txt_path)
-        except IOError:
-            print("缺少必要文件 site.text")
-            return
-        site_str = f.read()
-        site_str = site_str.split(",\n")
+    def get_fill_teeth_site(self, use_deploy, time, txt_path=0, site_str=0):
+        if use_deploy==0:
+            try:
+                f = open(txt_path)
+            except IOError:
+                print("缺少必要文件 site.text")
+                return
+            site_str = f.read()
+            site_str = site_str.split(",\n")
 
-        if time == '术前':
-            str_temp = site_str[0].split()
-            self.site = (int(str_temp[0]), int(str_temp[1]))
-            self.radius = int(str_temp[2])
-        elif time == '术中':
-            str_temp = site_str[1].split()
-            self.site = (int(str_temp[0]), int(str_temp[1]))
-            self.radius = int(str_temp[2])
-        elif time == '术后':
-            str_temp = site_str[2].split()
-            self.site = (int(str_temp[0]), int(str_temp[1]))
-            self.radius = int(str_temp[2])
+            if time == '术前':
+                str_temp = site_str[0].split()
+                self.site = (int(str_temp[0]), int(str_temp[1]))
+                self.radius = int(str_temp[2])
+            elif time == '术中':
+                str_temp = site_str[1].split()
+                self.site = (int(str_temp[0]), int(str_temp[1]))
+                self.radius = int(str_temp[2])
+            elif time == '术后':
+                str_temp = site_str[2].split()
+                self.site = (int(str_temp[0]), int(str_temp[1]))
+                self.radius = int(str_temp[2])
 
-        f.close()
+            f.close()
+        else:
+            if time == '术前':
+                self.site = site_str[0:4]
+            elif time == '术中':
+                self.site = site_str[4:8]
+            elif time == '术后':
+                self.site = site_str[8:12]
+
         return
 
     # / *展示最终结果照片 * /
@@ -507,7 +557,7 @@ def pro_require(img_names):
         if img_str[1] == "jpg":
             jpg_num += 1
             img_name_str = img_str[0].split("-")
-            operation_time = img_name_str[1]
+            operation_time = img_name_str[2]
 
             if operation_time == '术前' and first_flag == 0:
                 first_flag = 1

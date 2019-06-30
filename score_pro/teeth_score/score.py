@@ -9,6 +9,9 @@ import os
 from teeth import *
 from indicators import *
 
+BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/test.png'
+# BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/test.png'
+
 
 class Teeth_Grade():
     def __init__(self):
@@ -19,8 +22,9 @@ class Teeth_Grade():
         self.bb2 = Indicators_BB2()
         self.bb3 = Indicators_BB3()
         self.bb4 = Indicators_BB4()
+        self.str_score2cmd = [0,0,0]
         self.grade = 0
-        self.print_flag = 1
+        self.print_flag = 0
 
     def clear(self):
         self.aa1.clear()
@@ -279,14 +283,20 @@ class Teeth_Grade():
                 roi_h = int(h_k*h)
         else:
             return
-
+        gray_roi_img = gray_img[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]
+        mark_roi_img = mark_img[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]
+        
+        # print(np.mean(gray_img[mark_img == 255]),np.mean(gray_roi_img[mark_roi_img==255]))
         # 可视化龋齿黑点
         temp = np.zeros((height, width), dtype=np.uint8)
         mark_img = my_erode_dilate(mark_img, 2, 0, (3,3))
         temp[(mark_img == 255) & (gray_img < caries_point_thresh)] = 255 
         black_point_show = np.zeros((height, width), dtype=np.uint8)
         black_point_show[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w] = temp[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w]
-        cv2.imshow('black_point_show', black_point_show)
+        # cv2.imshow('black_point_show', black_point_show)
+        # cv2.imshow("gray_img",gray_img)
+        # cv2.setMouseCallback('gray_img', print_value, gray_img)
+
 
         img, contours, hierarchy = cv2.findContours(black_point_show.copy(),
                                                         cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -318,6 +328,7 @@ class Teeth_Grade():
         self.bb1.black_depth = black_level_score
         self.bb1.black_size = black_num_score
         self.bb1.sum()
+        black_contours_n = my_limit(black_contours_n, 0, 5)
         self.bb1.grade -= black_contours_n
         return
 
@@ -372,7 +383,7 @@ class Teeth_Grade():
             # 可视化
             fill_roi = np.zeros(src_image.shape, np.uint8)
             fill_roi[row:row+h,col:col+w] = src_image[row:row+h,col:col+w]
-            cv2.imshow("mark", fill_roi)
+            # cv2.imshow("mark", fill_roi)
             # print("in bb3_get")
         if contours:
             return col, row, w, h
@@ -442,7 +453,7 @@ class Teeth_Grade():
             src_image_copy = src_image.copy()
             cv2.rectangle(src_image_copy, (roi_col, roi_row), (roi_col+roi_w, roi_row+roi_h), (255,0,0), 1)
             cv2.rectangle(src_image_copy, (roi_col_other, roi_row_other), (roi_col_other+roi_w_other, roi_row_other+roi_h_other), (255,255,0), 1)
-            cv2.imshow("rectangle", src_image_copy)
+            # cv2.imshow("rectangle", src_image_copy)
 
             hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
             img_rows, img_cols = hsv_image.shape[:2]
@@ -465,9 +476,9 @@ class Teeth_Grade():
             # cv2.imshow("oneself_other_mark", oneself_other_mark)
 
             # # 计算均值
-            print(np.sum(fill_mark[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w] !=0),
-                  np.sum(other_mark[roi_row_other:roi_row_other+roi_h_other, roi_col_other:roi_col_other+roi_w_other] !=0), 
-                  np.sum(oneself_other_mark !=0))
+            # print(np.sum(fill_mark[roi_row:roi_row+roi_h, roi_col:roi_col+roi_w] !=0),
+            #       np.sum(other_mark[roi_row_other:roi_row_other+roi_h_other, roi_col_other:roi_col_other+roi_w_other] !=0), 
+            #       np.sum(oneself_other_mark !=0))
             # if fill_H[:]==0 and other_H[:]==0 and oneself_other_mark[:]==0:
             #     self.roi_site = 0, 0, 0, 0
             #     self.bb3.sum()
@@ -512,12 +523,10 @@ class Teeth_Grade():
             return
         elif operation_time == '术中':
             return
-        elif operation_time == '术前':
-            return
+        # elif operation_time == '术前':
+        #     return
         # std_img = io.imread('./BB4_standard_template/test.png')
-        std_img = cv2.imdecode(np.fromfile('./BB4_standard_template/test.png',dtype=np.uint8), -1)
-        # std_img = np.rot90(std_img)
-        # cv2.imshow('std_img', std_img)
+        std_img = cv2.imdecode(np.fromfile(BB4_STANDARD_IMGDIR,dtype=np.uint8), -1)
 
         img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
                                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -532,34 +541,42 @@ class Teeth_Grade():
             element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
             fill_bin = cv2.erode(fill_bin, element)
 
-            edge_output = cv2.Canny(fill_gray, 40, 120)
-            src_gray_output = cv2.Canny(src_gray_img, 40, 120)
+            #Sobel边缘检测 
+            dst = cv2.fastNlMeansDenoising(fill_gray, h=5, templateWindowSize=7, searchWindowSize=21)
+            # cv2.imshow("dst",dst)
+            sobelX = cv2.Sobel(dst,cv2.CV_64F,1,0)#x方向的梯度 
+            sobelY = cv2.Sobel(dst,cv2.CV_64F,0,1)#y方向的梯度 
+            sobelX = np.uint8(np.absolute(sobelX))#x方向梯度的绝对值 
+            sobelY = np.uint8(np.absolute(sobelY))#y方向梯度的绝对值 
+            sobelCombined = cv2.bitwise_or(sobelX,sobelY)# 
+            # cv2.imshow("Sobel Combined", sobelCombined)
+            #Canny边缘检测 
+            # edge_output = cv2.Canny(fill_gray, 40, 120)
 
             grain_show = np.zeros(fill_gray.shape[0:2], dtype=np.uint8)
-            gap_point_num = 0
             for r in range(fill_gray.shape[0]):
                 for c in range(fill_gray.shape[1]):
-                    if fill_bin[r][c] == 255 and edge_output[r][c] == 255:
-                        grain_show[r][c] = 255
-                        gap_point_num += 1
+                    if fill_bin[r][c] == 255:
+                        grain_show[r][c] = sobelCombined[r,c]
 
             fill_canny = np.zeros((200,200), dtype=np.uint8)
             fill_canny[50:150,50:150] = grain_show
-            
+            rows, cols = fill_canny.shape[0:2]
+                        
             # 旋转90度，再次匹配，取最大值
             max_val_list = []
-            for i in range(4):
-                res = cv2.matchTemplate(fill_canny, std_img, cv2.TM_CCOEFF_NORMED)
+            for i in range(10):
+                M = cv2.getRotationMatrix2D((cols/2,rows/2),36*i,1)
+                dst = cv2.warpAffine(fill_canny,M,(cols,rows))
+                res = cv2.matchTemplate(dst, std_img, cv2.TM_CCOEFF_NORMED)
                 min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-                std_img = np.rot90(std_img)
-                # print(max_val)
                 max_val_list.append(max_val)
             max_val = np.max(max_val_list)
             if self.print_flag == 1:
                 print("BB4[INFO]:沟壑匹配度", max_val)
-            # 纹路可视化
-            # cv2.imshow("纹路", fill_canny)
-            # cv2.setMouseCallback('纹路', draw_num, grain_show)
+            # # 纹路可视化
+            # cv2.imshow("std_img", grain_show)
+            # cv2.setMouseCallback('std_img', draw_num, grain_show)
             # key = 0
             # while key != ord('s'):
             #     key = cv2.waitKey(0)
@@ -577,7 +594,7 @@ class Teeth_Grade():
         self.bb4.sum()
         return
 
-    def score_all(self, teeth_pro):
+    def score_all(self, teeth_pro, use_deploy = 0):
         self.score_aa1(teeth_pro.dst_all_mark, teeth_pro.dst_fill_mark, teeth_pro.site, teeth_pro.radius)
         is_ok = self.score_aa2(teeth_pro.dst_all_mark, teeth_pro.dst_fill_mark, teeth_pro.site,
                                teeth_pro.img_info.operation_time)       
@@ -601,7 +618,22 @@ class Teeth_Grade():
         self.grade = self.aa1.grade + self.aa2.grade + self.aa3.grade
         self.grade += self.bb1.grade + self.bb2.grade + self.bb3.grade + self.bb4.grade
 
-        self.creat_score_txt(teeth_pro.img_info)
+        if use_deploy == 0:
+            self.creat_score_txt(teeth_pro.img_info)
+        else:
+            if teeth_pro.img_info.operation_time == "术前":
+                self.str_score2cmd[0] = str(self.aa1.grade) + " " + str(self.aa2.grade) + " " + str(self.aa3.grade) + " " + \
+                                    str(self.bb1.grade) + " " + str(self.bb2.grade) + " " + str(self.bb3.grade) + " " + \
+                                    str(self.bb4.grade) + " " + str(self.grade)
+            if teeth_pro.img_info.operation_time == "术中":
+                self.str_score2cmd[1] = str(self.aa1.grade) + " " + str(self.aa2.grade) + " " + str(self.aa3.grade) + " " + \
+                                        str(self.bb1.grade) + " " + str(self.bb2.grade) + " " + str(self.bb3.grade) + " " + \
+                                        str(self.bb4.grade) + " " + str(self.grade)
+            if teeth_pro.img_info.operation_time == "术后":
+                self.str_score2cmd[2] = str(self.aa1.grade) + " " + str(self.aa2.grade) + " " + str(self.aa3.grade) + " " + \
+                                        str(self.bb1.grade) + " " + str(self.bb2.grade) + " " + str(self.bb3.grade) + " " + \
+                                        str(self.bb4.grade) + " " + str(self.grade)   
+                print("aabb", "#", self.str_score2cmd[0], "#", self.str_score2cmd[1], "#", self.str_score2cmd[2])
 
         if self.print_flag == 1:
             self.aa1.print()
@@ -647,5 +679,19 @@ def draw_num(event, x, y, flags, param):
         # prev_pt = None
     if label_flag == 1:
         param[y-pen_w:y+pen_w,x-pen_w:x+pen_w] = 0
-    cv2.imshow('纹路', param)
+        print(y, x)
+    cv2.imshow('std_img', param)
+
+def print_value(event, x, y, flags, param):
+    global label_flag
+    pen_w = 5
+    pt = (x, y)
+    prev_pt = pt
+    if event == cv2.EVENT_LBUTTONDOWN:
+        label_flag = 1 # 左键按下
+    elif event == cv2.EVENT_LBUTTONUP:
+        label_flag = 0 # 左键放开
+        # prev_pt = None
+    if label_flag == 1:
+        print(param[y,x])
 

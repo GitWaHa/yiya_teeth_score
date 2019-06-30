@@ -14,7 +14,7 @@ from imutils import paths
 TARGET_INPUT_SIZE = (128, 128)
 MODEL_INPUT_SIZE = TARGET_INPUT_SIZE + (1, )
 # PATH_MODEL_HDF5 = "./U_net/model_hdf5/unet_128.hdf5"
-PATH_MODEL_HDF5 = "./U_net/model_hdf5/unet_128.hdf5"
+PATH_MODEL_HDF5 = "D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/U_net/model_hdf5/unet_128.hdf5"
 
 
 def image_proc(img, target_size = (128,128)):
@@ -28,7 +28,7 @@ def image_proc(img, target_size = (128,128)):
 
 model = unet(input_size = MODEL_INPUT_SIZE)
 model.load_weights(PATH_MODEL_HDF5)
-print("unet模型已加载")
+# print("unet模型已加载")
 def unet_extract_fillteeth(roi_image):
     # 获得网络的输入图片
     pre_image = image_proc(roi_image)

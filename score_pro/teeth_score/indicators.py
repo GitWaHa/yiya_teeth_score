@@ -251,7 +251,7 @@ class Indicators_BB4():
         self.GAP_SCORE = 10
         self.GAP_SUBTRACT = 1.5
         self.GAP_SUBTRACT_START = 0.7
-        self.GAP_SUBTRACT_RATIO = 0.1
+        self.GAP_SUBTRACT_RATIO = 0.15
 
         self.gap = 0.0    # 沟壑纹路得分
         self.grade = 0
