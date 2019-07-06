@@ -6,8 +6,8 @@ import datetime
 from imutils import paths
 
 
-imagePaths = sorted(list(paths.list_images('raw_data2')))
-# print (imagePaths)
+imagePaths = sorted(list(paths.list_images('original_image')))
+print (imagePaths)
 # for imagePath in imagePaths:
 #     print (imagePath)
 outputPath = './labeled_data/'
@@ -27,23 +27,6 @@ image_roi_bak = None # 感兴趣区域备份
 prev_pt = None # 上一个点
 save_cnt = -1 # 保存图片数
 raw_img_num = 0 # 当前读取的原始图
-
-
-# # 连续标记
-# def draw_label(event,x,y,flags,param):
-#     global prev_pt, label_flag
-#     pt = (x, y)
-#     prev_pt = pt
-#     if event == cv2.EVENT_LBUTTONDOWN:
-#         label_flag = 1 # 左键按下
-#     elif event == cv2.EVENT_LBUTTONUP:
-#         label_flag = 0 # 左键放开
-#         # prev_pt = None
-#     if label_flag == 1:
-#         cv2.line(image_roi, prev_pt, pt, (255,255,255), 2)
-#         cv2.line(mask, prev_pt, pt, (255,255,255), 2)
-#     cv2.imshow('roi_resize', image_roi)
-#     cv2.imshow('mask', mask)
 
 
 # 区域标记
