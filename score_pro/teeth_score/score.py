@@ -3,11 +3,15 @@
 
 import cv2
 import numpy as np
+from sklearn.cluster import KMeans
 import filetype
 import math
 import os
 from teeth import *
 from indicators import *
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/test.png'
 # BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/test.png'
@@ -276,7 +280,12 @@ class Teeth_Grade():
         self.aa3.sum()
         return 1
 
-    def score_bb1(self, gray_img, fillarea_img, operation_time, teeth_site=0):
+    def score_bb1(self,
+                  gray_img,
+                  fillarea_img,
+                  operation_time,
+                  teeth_site=0,
+                  rgb_img=0):
         if operation_time == '术前':
             return
         if operation_time == '术后':
@@ -284,10 +293,12 @@ class Teeth_Grade():
             return
 
         fillarea_img_copy = fillarea_img.copy()
+        B, G, R = cv2.split(rgb_img)
         if teeth_site == '门牙':
             thresh = np.mean(gray_img[fillarea_img_copy == 255]) - 40  # 灰度阈值
         else:
             thresh = np.mean(gray_img[fillarea_img_copy == 255]) - 25  # 灰度阈值
+            # thresh = np.mean(R[fillarea_img_copy == 255]) - 25
 
         # fillarea_img_copy = my_erode_dilate(fillarea_img_copy, 0, 2, (5, 5))
         # cv2.imshow('fillarea_img_copy', fillarea_img_copy)
@@ -308,12 +319,23 @@ class Teeth_Grade():
         gray_roi_img[fillarea_img_copy == 0] = 0
         black_point_show = np.zeros((rows, cols), dtype=np.uint8)
         black_point_show[(fillarea_img_copy == 255)
-                         & (gray_roi_img < thresh)] = 255
+                         & (gray_img < thresh)] = 255
         # 可视化龋齿黑点
         cv2.imshow('black_point_show', black_point_show)
+        # R[fillarea_img_copy==0]=0
+        # # cv2.imshow('rgb_img', rgb_img[:,:,2])
+        # cv2.imshow('rgb_img2', R)
+        # cv2.setMouseCallback('rgb_img2', print_value, R)
 
-        # black_point_show = my_erode_dilate(black_point_show, 1, 1, (5, 5), order=1)
-        # cv2.imshow('black_point_show2', black_point_show)
+        # 绘制散点图
+        # fig = plt.figure()
+        # ax = Axes3D(fig)
+        # # ax.scatter(data[label_pred==0][:,0], data[label_pred==0][:,1], data[label_pred==0][:,2], c='r', label='0')
+        # # ax.scatter(data[label_pred==1][:,0], data[label_pred==1][:,1], data[label_pred==1][:,2], c='b', label='1')
+        # # ax.set_zlabel('Z', fontdict={'size': 15, 'color': 'red'})
+        # # ax.set_ylabel('Y', fontdict={'size': 15, 'color': 'red'})
+        # # ax.set_xlabel('X', fontdict={'size': 15, 'color': 'red'})
+        # plt.show()
 
         # 计算黑色点块的数量
         img, contours, hierarchy = cv2.findContours(black_point_show.copy(),
@@ -420,7 +442,7 @@ class Teeth_Grade():
         if len(self.roi_site_k_list) == 0:
             self.bb3.other_diff = np.random.randint(9, 10)
             self.bb3.oneself_diff = np.random.randint(9, 10)
-            self.bb1.sum()
+            self.bb3.sum()
             return
 
         hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
@@ -518,7 +540,7 @@ class Teeth_Grade():
         self.bb3.other_diff = h_avr + s_avr
         self.bb3.oneself_diff = oneself_h_avr + oneself_s_avr
 
-        self.roi_site_k_list = 0, 0, 0, 0
+        self.roi_site_k_list = 0
         self.bb3.sum()
         return
 
@@ -623,7 +645,8 @@ class Teeth_Grade():
         self.score_bb1(teeth_pro.src_gray_image,
                        teeth_pro.dst_fillarea_mark,
                        teeth_pro.img_info.operation_time,
-                       teeth_site=teeth_pro.img_info.operation_name)
+                       teeth_site=teeth_pro.img_info.operation_name,
+                       rgb_img=teeth_pro.src_image)
         self.score_bb3(teeth_pro.src_image, teeth_pro.dst_fill_mark,
                        teeth_pro.dst_other_mark, teeth_pro.dst_fillarea_mark,
                        teeth_pro.img_info.operation_time)
