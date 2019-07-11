@@ -82,13 +82,13 @@ def main():
                 grade.score_all(teeth)
                 print(" ")
 
-            #     key = 0
-            #     while key != ord("d"):
-            #         key = cv.waitKey(0)
-            #         if key == 27:
-            #             cv.destroyAllWindows()
-            #             return
-            # cv.destroyAllWindows()
+                key = 0
+                while key != ord("d"):
+                    key = cv.waitKey(0)
+                    if key == 27:
+                        cv.destroyAllWindows()
+                        return
+            cv.destroyAllWindows()
             time_order = 0
     else:
         # 三个图片地址位置获取

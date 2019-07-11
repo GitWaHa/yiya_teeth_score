@@ -284,7 +284,7 @@ class Teeth_Grade():
                   gray_img,
                   fillarea_img,
                   operation_time,
-                  teeth_site=0,
+                  teeth_type=0,
                   rgb_img=0):
         if operation_time == '术前':
             return
@@ -294,7 +294,7 @@ class Teeth_Grade():
 
         fillarea_img_copy = fillarea_img.copy()
         B, G, R = cv2.split(rgb_img)
-        if teeth_site == '门牙':
+        if teeth_type == '门牙':
             thresh = np.mean(gray_img[fillarea_img_copy == 255]) - 40  # 灰度阈值
         else:
             thresh = np.mean(gray_img[fillarea_img_copy == 255]) - 25  # 灰度阈值
@@ -545,11 +545,11 @@ class Teeth_Grade():
         return
 
     def score_bb4(self, src_gray_img, fill_mark, operation_time,
-                  operation_name):
-        if operation_name == '门牙':
+                  fillteeth_type):
+        if fillteeth_type == '门牙':
             self.bb4.grade = self.bb4.GAP_SCORE
             return
-        elif operation_time == '术中':
+        elif fillteeth_type == '术中':
             return
         # elif operation_time == '术前':
         #     return
@@ -645,7 +645,7 @@ class Teeth_Grade():
         self.score_bb1(teeth_pro.src_gray_image,
                        teeth_pro.dst_fillarea_mark,
                        teeth_pro.img_info.operation_time,
-                       teeth_site=teeth_pro.img_info.operation_name,
+                       teeth_type=teeth_pro.img_info.fillteeth_type,
                        rgb_img=teeth_pro.src_image)
         self.score_bb3(teeth_pro.src_image, teeth_pro.dst_fill_mark,
                        teeth_pro.dst_other_mark, teeth_pro.dst_fillarea_mark,
@@ -654,7 +654,7 @@ class Teeth_Grade():
                        teeth_pro.img_info.operation_time)
         self.score_bb4(teeth_pro.src_gray_image, teeth_pro.dst_fill_mark,
                        teeth_pro.img_info.operation_time,
-                       teeth_pro.img_info.operation_name)
+                       teeth_pro.img_info.fillteeth_type)
 
         self.grade = self.aa1.grade + self.aa2.grade + self.aa3.grade
         self.grade += self.bb1.grade + self.bb2.grade + self.bb3.grade + self.bb4.grade
@@ -695,7 +695,7 @@ class Teeth_Grade():
             f.write("\n")
             f.write(img_info.patient_name + "-" + img_info.operation_time +
                     "-")
-            f.write(img_info.operation_name + "-" + img_info.doctor_name + "-")
+            f.write(img_info.fillteeth_type + "-" + img_info.doctor_name + "-")
             f.write(
                 str(self.aa1.grade) + "-" + str(self.aa2.grade) + "-" +
                 str(self.aa3.grade) + "-")
@@ -711,7 +711,7 @@ class Teeth_Grade():
             f.write("0xaaee0xaaff0x55550xa5a5" + "\n")
             f.write(img_info.patient_name + "-" + img_info.operation_time +
                     "-")
-            f.write(img_info.operation_name + "-" + img_info.doctor_name + "-")
+            f.write(img_info.fillteeth_type + "-" + img_info.doctor_name + "-")
             f.write(
                 str(self.aa1.grade) + "-" + str(self.aa2.grade) + "-" +
                 str(self.aa3.grade) + "-")

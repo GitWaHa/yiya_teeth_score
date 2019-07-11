@@ -23,9 +23,13 @@ class Img_info:
     def __init__(self):
         self.patient_name = 0
         self.operation_time = 0
-        self.operation_name = 0
+        self.fillteeth_type = 0
+        self.fillteeth_name = 0
+        self.fillteeth_region = 0
+        self.fillteeth_num = 0
         self.doctor_name = 0
         self.img_type = 0
+
         self.upload_time = 0
         self.pro_path = 'D:/WorkingFolder/Git/teeth_pro/score_pro/JPG_TEST'
 
@@ -36,16 +40,24 @@ class Img_info:
             self.upload_time = info[0]
             self.patient_name = info[1]
             self.operation_time = info[2]
-            self.operation_name = info[3]
+            self.fillteeth_name = info[3]
             self.doctor_name = info[4]
             self.img_type = info[5]
+
+            self.fillteeth_region = list(self.fillteeth_name)[0]
+            self.fillteeth_num = list(self.fillteeth_name)[1]
+
+            if self.fillteeth_num == '1' or self.fillteeth_num == '2' or self.fillteeth_num == '3':
+                self.fillteeth_type = '门牙'
+            else:
+                self.fillteeth_type = '后牙'
 
             # pattern = r"(.*)-(.*)-(.*)-(.*)\.(.*)"
             # info = list(re.findall(pattern, img_dir)[0])
             # self.upload_time = info[0]
             # self.patient_name = info[0]
             # self.operation_time = info[1]
-            # self.operation_name = info[2]
+            # self.fillteeth_type = info[2]
             # self.doctor_name = info[3]
             # self.img_type = info[4]
         else:
@@ -56,16 +68,25 @@ class Img_info:
             self.upload_time = info[0]
             self.patient_name = info[1]
             self.operation_time = info[2]
-            self.operation_name = info[3]
+            self.fillteeth_name = info[3]
             self.doctor_name = info[4]
             self.img_type = info[5]
+
+            self.fillteeth_region = list(self.fillteeth_name)[0]
+            self.fillteeth_num = list(self.fillteeth_name)[1]
+
+            if self.fillteeth_num == '1' or self.fillteeth_num == '2' or self.fillteeth_num == '3':
+                self.fillteeth_type = '门牙'
+            else:
+                self.fillteeth_type = '后牙'
 
         return
 
     def print_info(self):
         print("患者姓名：", self.patient_name)
         print("手术时间：", self.operation_time)
-        print("手术名称：", self.operation_name)
+        print("牙位信息：", self.fillteeth_name)
+        print("患牙类型：", self.fillteeth_type)
         print("医生姓名：", self.doctor_name)
         print("图片格式：", self.img_type)
 
@@ -411,7 +432,7 @@ class Teeth:
             self.dst_fillarea_mark[row1:row2, col1:col2] = mark_bin
             # 可视化所补区域
             fillarea = self.bin_to_rgb(self.dst_fillarea_mark)
-            cv2.imshow('mark_area',self.dst_fillarea_mark)
+            cv2.imshow('mark_area', self.dst_fillarea_mark)
 
     # / *提取所有需要的牙齿，包括单个患牙，全部牙齿，其他牙齿 * /
     def extract_all(self,
