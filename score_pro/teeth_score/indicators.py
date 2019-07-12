@@ -65,7 +65,7 @@ class Indicators_AA2():
         self.AREA_RATIO_SCORE = 4  # 所补牙与周边牙齿面积所占比例 总分
         self.AREA_RATIO_SUBTRACT_START_MAX = 0.7  # 所补牙与周边牙齿面积所占比例 大于此比例开始扣分
         self.AREA_RATIO_SUBTRACT_START_MIN = 0.4  # 所补牙与周边牙齿面积所占比例 小于此比例开始扣分
-        self.AREA_RATIO_SUBTRACT_RATIO = 0.05  # 所补牙与周边牙齿面积所占比例 每此比例扣一次分
+        self.AREA_RATIO_SUBTRACT_RATIO = 0.10  # 所补牙与周边牙齿面积所占比例 每此比例扣一次分
         self.AREA_RATIO_SUBTRACT = 1  # 所补牙与周边牙齿面积所占比例 扣分值
         self.AREA_RATIO_MIN = 0.1
 

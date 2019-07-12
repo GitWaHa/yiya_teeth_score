@@ -4,10 +4,7 @@
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-import copy
-import os
-import time
-import re
+import os, re, time, copy
 from shutil import copyfile
 
 from unet_extract import *

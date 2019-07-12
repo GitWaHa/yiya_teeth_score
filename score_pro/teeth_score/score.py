@@ -13,7 +13,7 @@ from indicators import *
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/test.png'
+BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/'
 # BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/test.png'
 
 
@@ -41,7 +41,8 @@ class Teeth_Grade():
         self.bb4.clear()
         self.grade = 0
 
-    def score_aa1(self, dst_all_mark, dst_fill_mark, site, radius):
+    def score_aa1(self, dst_all_mark, dst_fill_mark, site, radius,
+                  fillteeth_num):
         key_elements_score = self.aa1.CONTAINS_NEIGHBOR_SCORE
 
         src_row, src_col = dst_all_mark.shape[:2]
@@ -122,12 +123,16 @@ class Teeth_Grade():
             if self.print_flag == 1:
                 print('AA1[INFO] 只有单侧牙，且不完整,1分')
 
-        self.aa1.contains_neighbor = key_elements_score
+        if fillteeth_num == '7' and self.aa1.neighbor_num >= 1:
+            self.aa1.contains_neighbor = self.aa1.CONTAINS_NEIGHBOR_SCORE
+        else:
+            self.aa1.contains_neighbor = key_elements_score
         self.aa1.undefined = 3  # 直接给3分
         self.aa1.sum()
         return 1
 
-    def score_aa2(self, dst_all_mark, dst_fill_mark, site, operation_time):
+    def score_aa2(self, dst_all_mark, dst_fill_mark, site, operation_time,
+                  fillteeth_num):
         img_row, img_col = dst_all_mark.shape[:2]
         if self.print_flag == 1:
             print('AA2[INFO]：图片大小', img_row, img_col)
@@ -163,7 +168,10 @@ class Teeth_Grade():
         else:
             center_point_scores = full_scores
 
-        self.aa2.center_bias = center_point_scores
+        if fillteeth_num == '7':
+            self.aa2.center_bias = full_scores
+        else:
+            self.aa2.center_bias = center_point_scores
 
         # 面积大小占比评分
         # 标记滤波,查找最大外轮廓
@@ -172,7 +180,9 @@ class Teeth_Grade():
                                                   cv2.CHAIN_APPROX_SIMPLE)
         if contours:
             maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
-            area_fill = cv2.contourArea(maxcnt)
+            col, row, w, h = cv2.boundingRect(maxcnt)
+            area_fill = w * h
+            # area_fill = cv2.contourArea(maxcnt)
 
             pic_area = img_row * img_col  # 图片整体面积
             area_ratio = area_fill * (self.aa1.neighbor_num +
@@ -210,10 +220,10 @@ class Teeth_Grade():
                 print('AA2[INFO] 角度', math.atan(vy / vx) / math.pi * 180)
 
             # 角度可视化
-            # lefty = int((-x * vy / vx) + y)
-            # righty = int(((dst_all_mark.shape[1] - x) * vy / vx) + y)
-            # img = cv2.line(dst_all_mark, (dst_all_mark.shape[1] - 1, righty), (0, lefty), (0, 255, 0), 2)
-            # cv2.imshow("Canvas", img)
+            lefty = int((-x * vy / vx) + y)
+            righty = int(((dst_all_mark.shape[1] - x) * vy / vx) + y)
+            img = cv2.line(dst_all_mark, (dst_all_mark.shape[1] - 1, righty), (0, lefty), (0, 255, 0), 2)
+            cv2.imshow("Canvas", img)
 
             if operation_time == '术前':
                 self.aa2.first_angle = math.atan(vy / vx) / math.pi * 180
@@ -545,17 +555,27 @@ class Teeth_Grade():
         return
 
     def score_bb4(self, src_gray_img, fill_mark, operation_time,
-                  fillteeth_type):
+                  fillteeth_type, fillteeth_num):
         if fillteeth_type == '门牙':
             self.bb4.grade = self.bb4.GAP_SCORE
             return
-        elif fillteeth_type == '术中':
+        elif operation_time == '术中':
             return
-        # elif operation_time == '术前':
-        #     return
-        # std_img = io.imread('./BB4_standard_template/test.png')
-        std_img = cv2.imdecode(
-            np.fromfile(BB4_STANDARD_IMGDIR, dtype=np.uint8), -1)
+        elif operation_time == '术前':
+            return
+        # 选取对应模版
+        if fillteeth_num == '6' or fillteeth_num == '7':
+            std_img = cv2.imdecode(
+                np.fromfile(BB4_STANDARD_IMGDIR + 'test_6-7.png',
+                            dtype=np.uint8), -1)
+        elif fillteeth_num == '4' or fillteeth_num == '5':
+            std_img = cv2.imdecode(
+                np.fromfile(BB4_STANDARD_IMGDIR + 'test_4-5.png',
+                            dtype=np.uint8), -1)
+        else:
+            std_img = cv2.imdecode(
+                np.fromfile(BB4_STANDARD_IMGDIR + 'test_4-5.png',
+                            dtype=np.uint8), -1)
 
         img, contours, hierarchy = cv2.findContours(fill_mark.copy(),
                                                     cv2.RETR_EXTERNAL,
@@ -631,10 +651,12 @@ class Teeth_Grade():
 
     def score_all(self, teeth_pro, use_deploy=0):
         self.score_aa1(teeth_pro.dst_all_mark, teeth_pro.dst_fill_mark,
-                       teeth_pro.site, teeth_pro.radius)
+                       teeth_pro.site, teeth_pro.radius,
+                       teeth_pro.img_info.fillteeth_num)
         is_ok = self.score_aa2(teeth_pro.dst_all_mark, teeth_pro.dst_fill_mark,
                                teeth_pro.site,
-                               teeth_pro.img_info.operation_time)
+                               teeth_pro.img_info.operation_time,
+                               teeth_pro.img_info.fillteeth_num)
         if is_ok == 0:
             print("error: area is not ok")
             self.grade = self.aa1.grade + self.aa2.grade + self.aa3.grade
@@ -654,7 +676,8 @@ class Teeth_Grade():
                        teeth_pro.img_info.operation_time)
         self.score_bb4(teeth_pro.src_gray_image, teeth_pro.dst_fill_mark,
                        teeth_pro.img_info.operation_time,
-                       teeth_pro.img_info.fillteeth_type)
+                       teeth_pro.img_info.fillteeth_type,
+                       teeth_pro.img_info.fillteeth_num)
 
         self.grade = self.aa1.grade + self.aa2.grade + self.aa3.grade
         self.grade += self.bb1.grade + self.bb2.grade + self.bb3.grade + self.bb4.grade
@@ -735,7 +758,7 @@ def draw_num(event, x, y, flags, param):
         # prev_pt = None
     if label_flag == 1:
         param[y - pen_w:y + pen_w, x - pen_w:x + pen_w] = 0
-        print(y, x)
+        # print(y, x)
     cv2.imshow('std_img', param)
 
 
