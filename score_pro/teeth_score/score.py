@@ -29,7 +29,7 @@ class Teeth_Grade():
         self.roi_site_k_list = 0
         self.str_score2cmd = [0, 0, 0]
         self.grade = 0
-        self.print_flag = 1
+        self.print_flag = 0
 
     def clear(self):
         self.aa1.clear()
@@ -220,10 +220,10 @@ class Teeth_Grade():
                 print('AA2[INFO] 角度', math.atan(vy / vx) / math.pi * 180)
 
             # 角度可视化
-            lefty = int((-x * vy / vx) + y)
-            righty = int(((dst_all_mark.shape[1] - x) * vy / vx) + y)
-            img = cv2.line(dst_all_mark, (dst_all_mark.shape[1] - 1, righty), (0, lefty), (0, 255, 0), 2)
-            cv2.imshow("Canvas", img)
+            # lefty = int((-x * vy / vx) + y)
+            # righty = int(((dst_all_mark.shape[1] - x) * vy / vx) + y)
+            # img = cv2.line(dst_all_mark, (dst_all_mark.shape[1] - 1, righty), (0, lefty), (0, 255, 0), 2)
+            # cv2.imshow("Canvas", img)
 
             if operation_time == '术前':
                 self.aa2.first_angle = math.atan(vy / vx) / math.pi * 180
@@ -299,7 +299,7 @@ class Teeth_Grade():
         if operation_time == '术前':
             return
         if operation_time == '术后':
-            self.bb1.grade = 0
+            self.bb1.grade = 20
             return
 
         fillarea_img_copy = fillarea_img.copy()
@@ -449,6 +449,9 @@ class Teeth_Grade():
                 fill_mark, fillarea_mark)
             return
 
+        if self.roi_site_k_list==0:
+            return
+
         if len(self.roi_site_k_list) == 0:
             self.bb3.other_diff = np.random.randint(9, 10)
             self.bb3.oneself_diff = np.random.randint(9, 10)
@@ -458,6 +461,13 @@ class Teeth_Grade():
         hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
         img_rows, img_cols = hsv_image.shape[:2]
         H, S, V = cv2.split(hsv_image)
+        # cv2.imshow('H', H)
+        # cv2.imshow('S', S)
+
+        # gray_img = cv2.cvtColor(src_image, cv2.COLOR_BGR2GRAY)
+        # cv2.imshow('gray_img', gray_img)
+
+
         fillarea_mark = np.zeros((img_rows, img_cols), np.uint8)
         otherarea_mark = np.zeros((img_rows, img_cols), np.uint8)
 
@@ -512,10 +522,12 @@ class Teeth_Grade():
         oneself_around_mark[fill_mark == 0] = 0
 
         # 位置矩形框可视化
-        cv2.imshow("fillarea_mark", fillarea_mark)
-        cv2.imshow("otherarea_mark", otherarea_mark)
-        cv2.imshow("oneself_around_mark", oneself_around_mark)
-        # cv2.waitKey(0)
+        fillarea_mark_show = bin_to_rgb(src_image, fillarea_mark)
+        otherarea_mark_show = bin_to_rgb(src_image, otherarea_mark)
+        oneself_around_mark_show = bin_to_rgb(src_image, oneself_around_mark)
+        cv2.imshow("fillarea_mark", fillarea_mark_show)
+        cv2.imshow("otherarea_mark", otherarea_mark_show)
+        cv2.imshow("oneself_around_mark", oneself_around_mark_show)
 
         fill_h_avr = np.mean(H[fillarea_mark != 0])
         fill_s_avr = np.mean(S[fillarea_mark != 0])
@@ -774,3 +786,12 @@ def print_value(event, x, y, flags, param):
         # prev_pt = None
     if label_flag == 1:
         print(param[y, x])
+
+# / *将二值化图映射到原图 * /
+def bin_to_rgb(rgb_img, bin_img):
+    img_rows, img_cols = bin_img.shape[:2]
+    re_dst_image = np.zeros(rgb_img.shape, dtype= np.uint8)
+
+    re_dst_image[bin_img == 255] = rgb_img[bin_img == 255]
+
+    return re_dst_image

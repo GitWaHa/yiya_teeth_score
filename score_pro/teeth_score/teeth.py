@@ -7,7 +7,8 @@ import numpy as np
 import os, re, time, copy
 from shutil import copyfile
 
-from unet_extract import *
+from unet_extract import unet_extract_fillteeth, unet_extract_fillarea
+from alexnet_classify import alexnet_classify_fillteeth
 
 TEETH_IMAGE_SET_ROW = 480
 TEETH_IMAGE_SET_COL = 480
@@ -182,7 +183,6 @@ class Teeth:
             min_col = int(my_limit(site[1], 0, self.src_image.shape[1]))
             max_col = int(my_limit(site[3], 0, self.src_image.shape[1]))
 
-        # dst_all_rgb = self.bin_to_rgb(all_mark)
         roi_img = self.src_image[min_row:max_row, min_col:max_col]
         row, col = roi_img.shape[:2]
 
@@ -195,6 +195,41 @@ class Teeth:
         # 将roi图转换到全图
         self.dst_fill_mark[min_row:max_row, min_col:max_col] = mark_bin
         return
+
+    def classify_fillteeth(self, site, radius=0):
+        if radius != 0:
+            min_row = int(
+                my_limit(site[0] - radius, 0, self.src_image.shape[0]))
+            max_row = int(
+                my_limit(site[0] + radius, 0, self.src_image.shape[0]))
+            min_col = int(
+                my_limit(site[1] - radius, 0, self.src_image.shape[1]))
+            max_col = int(
+                my_limit(site[1] + radius, 0, self.src_image.shape[1]))
+        else:
+            min_row = int(my_limit(site[0], 0, self.src_image.shape[0]))
+            max_row = int(my_limit(site[2], 0, self.src_image.shape[0]))
+            min_col = int(my_limit(site[1], 0, self.src_image.shape[1]))
+            max_col = int(my_limit(site[3], 0, self.src_image.shape[1]))
+
+        # dst_all_rgb = self.bin_to_rgb(all_mark)
+        roi_img = self.src_image[min_row:max_row, min_col:max_col]
+        row, col = roi_img.shape[:2]
+
+        # 分类目标牙齿（后牙1与非后牙0）
+        label = alexnet_classify_fillteeth(roi_img)
+        if label == 0:
+            if self.img_info.fillteeth_type == '门牙':
+                print('判断相同')
+            else:
+                print('判断不同')
+            self.img_info.fillteeth_type = '门牙'
+        elif label == 1:
+            if self.img_info.fillteeth_type == '后牙':
+                print('判断相同')
+            else:
+                print('判断不同')
+            self.img_info.fillteeth_type = '后牙'
 
     def find_neighbor_info(self, dst_all_mark, dst_fill_mark, site, radius=-1):
         self.neighbor_flag = 0
@@ -458,8 +493,10 @@ class Teeth:
 
         if use_deploy == 0:
             self.find_fill_teeth(self.dst_all_mark, self.site, self.radius)
+            self.classify_fillteeth(self.site, self.radius)
         else:
             self.find_fill_teeth(self.dst_all_mark, self.site)
+            self.classify_fillteeth(self.site)
 
         if self.img_info.operation_time == '术中':
             self.find_fill_area(self.dst_fill_mark)
