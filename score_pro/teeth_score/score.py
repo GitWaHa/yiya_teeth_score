@@ -7,14 +7,16 @@ from sklearn.cluster import KMeans
 import filetype
 import math
 import os
-from teeth import *
-from indicators import *
+from teeth_score.teeth import *
+from teeth_score.indicators import *
+from sklearn.externals import joblib
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/'
 # BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/test.png'
+TXT_DIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/lr_mode/'
 
 
 class Teeth_Grade():
@@ -30,6 +32,9 @@ class Teeth_Grade():
         self.str_score2cmd = [0, 0, 0]
         self.grade = 0
         self.print_flag = 0
+        self.print_lr_x_flag = 0
+        self.lr_x_str = ['0', '0', '0']
+        self.lr_flag = 1
 
     def clear(self):
         self.aa1.clear()
@@ -302,6 +307,7 @@ class Teeth_Grade():
             self.bb1.grade = 20
             return
 
+        self.lr_x_str = ['0', '0', '0']
         fillarea_img_copy = fillarea_img.copy()
         B, G, R = cv2.split(rgb_img)
         if teeth_type == '门牙':
@@ -355,7 +361,7 @@ class Teeth_Grade():
 
         for i in range(0, len(contours)):
             area_fill = cv2.contourArea(contours[i])
-            print(area_fill)
+            # print(area_fill)
             if area_fill >= 10:
                 cv2.drawContours(black_point_show, [contours[i]], -1, 0, -1)
                 if black_contours_n > 1:
@@ -369,6 +375,12 @@ class Teeth_Grade():
         # 计算最小灰度值
         if point_num != 0:
             min_gray_value = np.min(gray_roi_img[black_point_show == 255])
+
+        if self.print_lr_x_flag == 1:
+            self.lr_x_str[0] = str(point_num) + ',' + str(
+                my_limit(thresh - min_gray_value, 0, 255)) + ',' + str(
+                    my_limit(black_contours_n, 0, 5))
+            print(self.lr_x_str[0])
 
         # 根据黑点数量计算黑色大小得分
         if self.print_flag == 1:
@@ -395,6 +407,16 @@ class Teeth_Grade():
         self.bb1.grade -= black_contours_n
         self.bb1.grade = my_limit(self.bb1.grade, 10, 19)
 
+        if self.lr_flag == 1:
+            lr1 = joblib.load(TXT_DIR + 'bb1.pkl')
+            bb1x = np.array([[
+                point_num,
+                my_limit(thresh - min_gray_value, 0, 255),
+                black_contours_n
+            ]])
+            self.bb1.grade = int(lr1.predict(bb1x)[0][0])
+            self.bb1.grade = my_limit(self.bb1.grade, 10, 19)
+
         return
 
     def score_bb2(self, fill_mark, operation_time):
@@ -402,9 +424,10 @@ class Teeth_Grade():
             return
         elif operation_time == '术中':
             return
-
-        self.bb2.oneself_diff = self.bb3.oneself_diff * 2
-        self.bb2.sum()
+        
+        if self.lr_flag == 0:
+            self.bb2.oneself_diff = self.bb3.oneself_diff * 2
+            self.bb2.sum()
         return
 
     def score_bb3_get_roi(self, fill_mark, fillarea_mark):
@@ -449,24 +472,25 @@ class Teeth_Grade():
                 fill_mark, fillarea_mark)
             return
 
-        if self.roi_site_k_list==0:
+        if self.roi_site_k_list == 0:
             return
 
         if len(self.roi_site_k_list) == 0:
             self.bb3.other_diff = np.random.randint(9, 10)
             self.bb3.oneself_diff = np.random.randint(9, 10)
             self.bb3.sum()
+            self.bb2.grade = 18
             return
 
         hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
         img_rows, img_cols = hsv_image.shape[:2]
         H, S, V = cv2.split(hsv_image)
+        B, G, R = cv2.split(src_image)
         # cv2.imshow('H', H)
         # cv2.imshow('S', S)
 
         # gray_img = cv2.cvtColor(src_image, cv2.COLOR_BGR2GRAY)
         # cv2.imshow('gray_img', gray_img)
-
 
         fillarea_mark = np.zeros((img_rows, img_cols), np.uint8)
         otherarea_mark = np.zeros((img_rows, img_cols), np.uint8)
@@ -490,9 +514,10 @@ class Teeth_Grade():
                               roi_w] = 255
                 fillarea_mark[fill_mark == 0] = 0
             else:
-                self.bb3.other_diff = 5
-                self.bb3.oneself_diff = 5
+                self.bb3.other_diff = 9
+                self.bb3.oneself_diff = 9
                 self.bb3.sum()
+                self.bb2.grade = 18
                 return
 
             # 获得邻牙区域
@@ -529,14 +554,29 @@ class Teeth_Grade():
         cv2.imshow("otherarea_mark", otherarea_mark_show)
         cv2.imshow("oneself_around_mark", oneself_around_mark_show)
 
+        fill_b_avr = np.mean(B[fillarea_mark != 0])
+        fill_g_avr = np.mean(G[fillarea_mark != 0])
+        fill_r_avr = np.mean(R[fillarea_mark != 0])
+
+        other_b_avr = np.mean(B[otherarea_mark != 0])
+        other_g_avr = np.mean(G[otherarea_mark != 0])
+        other_r_avr = np.mean(R[otherarea_mark != 0])
+
+        oneself_other_b_avr = np.mean(B[oneself_around_mark == 255])
+        oneself_other_g_avr = np.mean(G[oneself_around_mark == 255])
+        oneself_other_r_avr = np.mean(R[oneself_around_mark == 255])
+
         fill_h_avr = np.mean(H[fillarea_mark != 0])
         fill_s_avr = np.mean(S[fillarea_mark != 0])
+        fill_v_avr = np.mean(V[fillarea_mark != 0])
 
         other_h_avr = np.mean(H[otherarea_mark != 0])
         other_s_avr = np.mean(S[otherarea_mark != 0])
+        other_v_avr = np.mean(V[otherarea_mark != 0])
 
         oneself_other_h_avr = np.mean(H[oneself_around_mark == 255])
         oneself_other_s_avr = np.mean(S[oneself_around_mark == 255])
+        oneself_other_v_avr = np.mean(V[oneself_around_mark == 255])
 
         # 根据均值方差的差值评分，差值越大分越低
         if self.print_flag == 1:
@@ -559,11 +599,45 @@ class Teeth_Grade():
             (abs(fill_s_avr - oneself_other_s_avr) / self.bb3.MAX_AVR_DIFF_S) *
             5, 0, 5)
 
+        if self.print_lr_x_flag == 1:
+            self.lr_x_str[1] = str(
+                abs(fill_b_avr - oneself_other_b_avr)) + ',' + str(
+                    abs(fill_g_avr - oneself_other_g_avr)) + ',' + str(
+                        abs(fill_r_avr - oneself_other_r_avr))
+            print(self.lr_x_str[1])
+            self.lr_x_str[2] = self.lr_x_str[1] + ',' + str(
+                abs(fill_b_avr - other_b_avr)) + ',' + str(
+                    abs(fill_g_avr - other_g_avr)) + ',' + str(
+                        abs(fill_r_avr - other_r_avr))
+            print(self.lr_x_str[2])
+
         self.bb3.other_diff = h_avr + s_avr
         self.bb3.oneself_diff = oneself_h_avr + oneself_s_avr
-
         self.roi_site_k_list = 0
         self.bb3.sum()
+
+        if self.lr_flag == 1:
+            lr3 = joblib.load(TXT_DIR + 'bb3.pkl')
+            bb3x = np.array([[
+                abs(fill_b_avr - oneself_other_b_avr),
+                abs(fill_g_avr - oneself_other_g_avr),
+                abs(fill_r_avr - oneself_other_r_avr),
+                abs(fill_b_avr - other_b_avr),
+                abs(fill_g_avr - other_g_avr),
+                abs(fill_r_avr - other_r_avr)
+            ]])
+            self.bb3.grade = int(lr3.predict(bb3x)[0][0])
+            self.bb3.grade = my_limit(self.bb3.grade, 10, 19)
+            lr2 = joblib.load(TXT_DIR + 'bb2.pkl')
+            bb2x = np.array([[
+                abs(fill_b_avr - oneself_other_b_avr),
+                abs(fill_g_avr - oneself_other_g_avr),
+                abs(fill_r_avr - oneself_other_r_avr)
+            ]])
+            self.bb2.grade = int(lr2.predict(bb2x)[0][0])
+            self.bb2.grade = my_limit(self.bb2.grade, 10, 19)
+            # print(self.bb3.grade)
+
         return
 
     def score_bb4(self, src_gray_img, fill_mark, operation_time,
@@ -720,6 +794,17 @@ class Teeth_Grade():
             self.bb2.print()
             self.bb3.print()
             self.bb4.print()
+        if self.print_lr_x_flag == 1 and teeth_pro.img_info.operation_time == "术后":
+            f = open(os.path.join('D:/WorkingFolder/Python/LinearRegression',
+                                  'lr_x.txt'),
+                     'a',
+                     encoding='utf-8')
+            f.write(teeth_pro.img_info.patient_name + " ")
+            f.write(self.lr_x_str[0] + " ")
+            f.write(self.lr_x_str[1] + " ")
+            f.write(self.lr_x_str[2] + " ")
+            f.write("\n")
+            f.close()
         return 1
 
     def creat_score_txt(self, img_info):
@@ -787,10 +872,11 @@ def print_value(event, x, y, flags, param):
     if label_flag == 1:
         print(param[y, x])
 
+
 # / *将二值化图映射到原图 * /
 def bin_to_rgb(rgb_img, bin_img):
     img_rows, img_cols = bin_img.shape[:2]
-    re_dst_image = np.zeros(rgb_img.shape, dtype= np.uint8)
+    re_dst_image = np.zeros(rgb_img.shape, dtype=np.uint8)
 
     re_dst_image[bin_img == 255] = rgb_img[bin_img == 255]
 

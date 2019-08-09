@@ -1,11 +1,11 @@
 #!/usr/bin/python3.6
 # coding=utf-8
+import sys, time
+sys.path.append('D:/WorkingFolder/Git/teeth_pro/score_pro/')
 
-import time
 import cv2 as cv
-from teeth import *
-from score import Teeth_Grade
-import sys
+from teeth_score.teeth import *
+from teeth_score.score import Teeth_Grade
 
 USE_DEPLOY_FLAG = 0
 
@@ -61,9 +61,10 @@ def main():
             # 对三张照片分割评分
             for j in range(time_order, 3):
                 teeth.img_info.get_info(img_names[j])
-                if find_flag == 'find' and teeth.img_info.patient_name !=('患者'+sys.argv[2]):
+                if find_flag == 'find' and teeth.img_info.patient_name != (
+                        '患者' + sys.argv[2]):
                     break
-                teeth.img_info.print_info()
+                
 
                 # img_path = os.path.join(current_path, img_names[j])
                 img_path = current_path + "/" + img_names[j]
@@ -76,6 +77,7 @@ def main():
 
                 # 提取整个牙齿、按个所补牙及剩余牙齿
                 teeth.extract_all(0, current_path, img_names[j])
+                teeth.img_info.print_info()
                 teeth.img_show()
 
                 # 根据提取的牙齿进行评分

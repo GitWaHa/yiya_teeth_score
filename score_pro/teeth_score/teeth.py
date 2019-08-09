@@ -4,11 +4,11 @@
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-import os, re, time, copy
+import os, re, time, copy, sys
 from shutil import copyfile
 
-from unet_extract import unet_extract_fillteeth, unet_extract_fillarea
-from alexnet_classify import alexnet_classify_fillteeth
+from teeth_score.unet_extract import unet_extract_fillteeth, unet_extract_fillarea
+from teeth_score.alexnet_classify import alexnet_classify_fillteeth
 
 TEETH_IMAGE_SET_ROW = 480
 TEETH_IMAGE_SET_COL = 480
@@ -49,7 +49,8 @@ class Img_info:
                 self.fillteeth_type = '门牙'
             else:
                 self.fillteeth_type = '后牙'
-
+            
+            # self.fillteeth_type = info[3]
             # pattern = r"(.*)-(.*)-(.*)-(.*)\.(.*)"
             # info = list(re.findall(pattern, img_dir)[0])
             # self.upload_time = info[0]
@@ -219,16 +220,16 @@ class Teeth:
         # 分类目标牙齿（后牙1与非后牙0）
         label = alexnet_classify_fillteeth(roi_img)
         if label == 0:
-            if self.img_info.fillteeth_type == '门牙':
-                print('判断相同')
-            else:
-                print('判断不同')
+            # if self.img_info.fillteeth_type == '门牙':
+            #     print('判断相同')
+            # else:
+            #     print('判断不同')
             self.img_info.fillteeth_type = '门牙'
         elif label == 1:
-            if self.img_info.fillteeth_type == '后牙':
-                print('判断相同')
-            else:
-                print('判断不同')
+            # if self.img_info.fillteeth_type == '后牙':
+            #     print('判断相同')
+            # else:
+            #     print('判断不同')
             self.img_info.fillteeth_type = '后牙'
 
     def find_neighbor_info(self, dst_all_mark, dst_fill_mark, site, radius=-1):
@@ -657,7 +658,7 @@ def pro_require(img_names):
     correct_img_names = [0 for i in range(3)]
     for i in range(len(img_names)):
         img_str = img_names[i].split(".")
-        if img_str[1] == "jpg":
+        if img_str[1].lower() == "jpg":
             jpg_num += 1
             img_name_str = img_str[0].split("-")
             operation_time = img_name_str[2]

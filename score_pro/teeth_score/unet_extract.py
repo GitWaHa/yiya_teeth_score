@@ -3,7 +3,7 @@
 #
 # 龋齿识别,针对术中图片
 
-from U_net.code_python.model import *
+from teeth_score.U_net.code_python.model import *
 
 import os
 import cv2

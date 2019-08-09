@@ -1,4 +1,5 @@
 from AlexNet.code_python.model import AlexNet
+from keras.models import load_model
 import cv2
 import numpy as np
 
@@ -19,6 +20,7 @@ def image_proc(img, target_size=(128, 128)):
 
 model = AlexNet(input_size=MODEL_INPUT_SIZE)
 model.load_weights(PATH_MODEL_HDF5)
+# model = load_model(PATH_MODEL_HDF5, compile=False)
 
 
 def alexnet_classify_fillteeth(roi_image):
