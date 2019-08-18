@@ -10,13 +10,16 @@ import os
 from teeth_score.teeth import *
 from teeth_score.indicators import *
 from sklearn.externals import joblib
+from teeth_score.ResNet50.classify_bb1 import classify_bb1
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/'
-# BB4_STANDARD_IMGDIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/BB4_standard_template/test.png'
-TXT_DIR = 'D:/WorkingFolder/Git/teeth_pro/score_pro/teeth_score/lr_mode/'
+import teeth_score.config as myconfig
+work_floder = myconfig.WORK_FLODER
+
+BB4_STANDARD_IMGDIR = work_floder + 'teeth_score/BB4_standard_template/'
+TXT_DIR = work_floder + 'teeth_score/lr_mode/'
 
 
 class Teeth_Grade():
@@ -307,6 +310,9 @@ class Teeth_Grade():
             self.bb1.grade = 20
             return
 
+        good_bad_label = classify_bb1(rgb_img)
+        # print('good_bad_label ', good_bad_label)
+
         self.lr_x_str = ['0', '0', '0']
         fillarea_img_copy = fillarea_img.copy()
         B, G, R = cv2.split(rgb_img)
@@ -411,8 +417,7 @@ class Teeth_Grade():
             lr1 = joblib.load(TXT_DIR + 'bb1.pkl')
             bb1x = np.array([[
                 point_num,
-                my_limit(thresh - min_gray_value, 0, 255),
-                black_contours_n
+                my_limit(thresh - min_gray_value, 0, 255), black_contours_n
             ]])
             self.bb1.grade = int(lr1.predict(bb1x)[0][0])
             self.bb1.grade = my_limit(self.bb1.grade, 10, 19)
@@ -424,7 +429,7 @@ class Teeth_Grade():
             return
         elif operation_time == '术中':
             return
-        
+
         if self.lr_flag == 0:
             self.bb2.oneself_diff = self.bb3.oneself_diff * 2
             self.bb2.sum()

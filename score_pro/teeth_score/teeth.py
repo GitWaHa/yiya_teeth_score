@@ -7,8 +7,12 @@ import numpy as np
 import os, re, time, copy, sys
 from shutil import copyfile
 
-from teeth_score.unet_extract import unet_extract_fillteeth, unet_extract_fillarea
-from teeth_score.alexnet_classify import alexnet_classify_fillteeth
+from teeth_score.U_net.unet_extract import unet_extract_fillteeth, unet_extract_fillarea
+from teeth_score.AlexNet.classify_teethtype import classify_teethtype
+from teeth_score.Yolo3.yolo_rect import detect_img
+
+import teeth_score.config as myconfig
+work_floder = myconfig.WORK_FLODER
 
 TEETH_IMAGE_SET_ROW = 480
 TEETH_IMAGE_SET_COL = 480
@@ -29,7 +33,7 @@ class Img_info:
         self.img_type = 0
 
         self.upload_time = 0
-        self.pro_path = 'D:/WorkingFolder/Git/teeth_pro/score_pro/JPG_TEST'
+        self.pro_path = work_floder + 'JPG_TEST'
 
     def get_info(self, img_dir, use_deploy=0):
         if use_deploy == 0:
@@ -49,7 +53,7 @@ class Img_info:
                 self.fillteeth_type = '门牙'
             else:
                 self.fillteeth_type = '后牙'
-            
+
             # self.fillteeth_type = info[3]
             # pattern = r"(.*)-(.*)-(.*)-(.*)\.(.*)"
             # info = list(re.findall(pattern, img_dir)[0])
@@ -218,7 +222,7 @@ class Teeth:
         row, col = roi_img.shape[:2]
 
         # 分类目标牙齿（后牙1与非后牙0）
-        label = alexnet_classify_fillteeth(roi_img)
+        label = classify_teethtype(roi_img)
         if label == 0:
             # if self.img_info.fillteeth_type == '门牙':
             #     print('判断相同')
@@ -480,6 +484,7 @@ class Teeth:
 
         self.read_image(img_path)
         self.resize(TEETH_IMAGE_SET_ROW, TEETH_IMAGE_SET_ROW)
+        detect_img(img_path)
 
         if use_deploy == 0:
             self.get_fill_teeth_site(use_deploy,

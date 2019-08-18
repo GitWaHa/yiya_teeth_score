@@ -1,7 +1,0 @@
-matplotlib==3.0.3
-filetype==1.0.5
-Keras==2.2.4
-imutils==0.5.2
-numpy==1.13.3
-scikit_image==0.14.2
-skimage==0.0

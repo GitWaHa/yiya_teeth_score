@@ -1,14 +1,14 @@
 #!/usr/bin/python3.6
 # coding=utf-8
-import sys, time
-sys.path.append('D:/WorkingFolder/Git/teeth_pro/score_pro/')
+import sys, os
+import cv2
+import config as myconfig
+sys.path.append(myconfig.WORK_FLODER)
 
-import cv2 as cv
-from teeth_score.teeth import *
+from teeth_score.teeth import Teeth, pro_require
 from teeth_score.score import Teeth_Grade
 
 USE_DEPLOY_FLAG = 0
-
 
 def main():
     img_order = 0
@@ -19,7 +19,7 @@ def main():
 
     # dir = "D:/WorkingFolder/Git/teeth_pro/score_pro/JPG_TEST/"
     if USE_DEPLOY_FLAG == 0:
-        JPG_dir = "D:/WorkingFolder/Git/teeth_pro/score_pro/JPG_TEST/"
+        JPG_dir = "D:/Workspace/Git/yiya/teeth_score/score_pro/JPG_TEST/"
     else:
         three_img_dir = [
             "C:/Users/WaHa/Desktop/TeethScore/project/test_img/201906_301527-患者1-术前-后牙-医生.jpg",
@@ -64,7 +64,6 @@ def main():
                 if find_flag == 'find' and teeth.img_info.patient_name != (
                         '患者' + sys.argv[2]):
                     break
-                
 
                 # img_path = os.path.join(current_path, img_names[j])
                 img_path = current_path + "/" + img_names[j]
@@ -84,13 +83,13 @@ def main():
                 grade.score_all(teeth)
                 print(" ")
 
-            #     key = 0
-            #     while key != ord("d"):
-            #         key = cv.waitKey(0)
-            #         if key == 27:
-            #             cv.destroyAllWindows()
-            #             return
-            # cv.destroyAllWindows()
+                key = 0
+                while key != ord("d"):
+                    key = cv2.waitKey(0)
+                    if key == 27:
+                        cv2.destroyAllWindows()
+                        return
+            cv2.destroyAllWindows()
             time_order = 0
     else:
         # 三个图片地址位置获取
@@ -127,7 +126,7 @@ def main():
             # 根据提取的牙齿进行评分
             grade.score_all(teeth, use_deploy=1)
             # print(" ")
-            cv.waitKey(0)
+            cv2.waitKey(0)
 
 
 if __name__ == '__main__':
