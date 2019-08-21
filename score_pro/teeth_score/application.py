@@ -10,6 +10,7 @@ from teeth_score.score import Teeth_Grade
 
 USE_DEPLOY_FLAG = 0
 
+
 def main():
     img_order = 0
     time_order = 0
@@ -17,19 +18,8 @@ def main():
     teeth = Teeth()
     grade = Teeth_Grade()
 
-    # dir = "D:/WorkingFolder/Git/teeth_pro/score_pro/JPG_TEST/"
     if USE_DEPLOY_FLAG == 0:
-        JPG_dir = "D:/Workspace/Git/yiya/teeth_score/score_pro/JPG_TEST/"
-    else:
-        three_img_dir = [
-            "C:/Users/WaHa/Desktop/TeethScore/project/test_img/201906_301527-患者1-术前-后牙-医生.jpg",
-            "C:/Users/WaHa/Desktop/TeethScore/project/test_img/201906_301527-患者1-术中-后牙-医生.jpg",
-            "C:/Users/WaHa/Desktop/TeethScore/project/test_img/201906_301527-患者1-术后-后牙-医生.jpg"
-        ]
-        three_img_site = [1, 192, 179, 370, 0, 187, 182, 369, 2, 188, 178, 364]
-
-    # 参数获取
-    if USE_DEPLOY_FLAG == 0:
+        JPG_dir = "D:/File/咿呀智能评分/TeethScore/JPG_TEST_History/JPG_TEST20-8-13/"
         for i in range(0, len(sys.argv)):
             print("参数", i, sys.argv[i])
             if i == 1:
@@ -37,10 +27,10 @@ def main():
                     find_flag = 'find'
                     break
             if i == 2:
-                img_order = int(sys.argv[2]) - 1
+                img_order = int(sys.argv[2])
 
             if i == 3:
-                time_order = int(sys.argv[3]) - 1
+                time_order = int(sys.argv[3])
 
         filenames = os.listdir(JPG_dir)
         # print(filenames)
@@ -59,14 +49,13 @@ def main():
                 continue
 
             # 对三张照片分割评分
-            for j in range(time_order, 3):
-                teeth.img_info.get_info(img_names[j])
+            for j in range(time_order, 3):      
+                img_path = current_path + "/" + img_names[j]
+                print(img_path)
+                teeth.img_info.get_info(img_path)
                 if find_flag == 'find' and teeth.img_info.patient_name != (
                         '患者' + sys.argv[2]):
                     break
-
-                # img_path = os.path.join(current_path, img_names[j])
-                img_path = current_path + "/" + img_names[j]
 
                 teeth.clear()
                 grade.clear()
@@ -75,7 +64,8 @@ def main():
                     break
 
                 # 提取整个牙齿、按个所补牙及剩余牙齿
-                teeth.extract_all(0, current_path, img_names[j])
+                # img_path = os.path.join(current_path, img_names[j])
+                teeth.extract_all(img_path)
                 teeth.img_info.print_info()
                 teeth.img_show()
 
@@ -83,15 +73,21 @@ def main():
                 grade.score_all(teeth)
                 print(" ")
 
-                key = 0
-                while key != ord("d"):
-                    key = cv2.waitKey(0)
-                    if key == 27:
-                        cv2.destroyAllWindows()
-                        return
-            cv2.destroyAllWindows()
+                # key = 0
+                # while key != ord("d"):
+                #     key = cv2.waitKey(0)
+                #     if key == 27:
+                #         cv2.destroyAllWindows()
+                #         return
+            # cv2.destroyAllWindows()
             time_order = 0
     else:
+        three_img_dir = [
+            "D:/File/咿呀智能评分/TeethScore/JPG_TEST_History/JPG_TEST20-8-13/患者001/201908_132052-患者001-术前-D3-医生.jpg",
+            "D:/File/咿呀智能评分/TeethScore/JPG_TEST_History/JPG_TEST20-8-13/患者001/201908_132052-患者001-术中-D3-医生.jpg",
+            "D:/File/咿呀智能评分/TeethScore/JPG_TEST_History/JPG_TEST20-8-13/患者001/201908_132052-患者001-术后-D3-医生.jpg"
+        ]
+
         # 三个图片地址位置获取
         for i in range(0, len(sys.argv)):
             # print("参数", i, sys.argv[i])
@@ -111,7 +107,7 @@ def main():
         for j in range(time_order, 3):
             img_path = three_img_dir[j]
             teeth.img_info.get_info(img_path, use_deploy=1)
-            # teeth.img_info.print_info()
+            teeth.img_info.print_info()
 
             grade.clear()
             if grade.score_aa3(img_path) == 0:
@@ -119,8 +115,7 @@ def main():
                 break
 
             # 提取整个牙齿、按个所补牙及剩余牙齿
-            # teeth.extract_all(current_path, img_names[j],img_path=img_path)
-            teeth.extract_all(1, img_path=img_path, site=three_img_site)
+            teeth.extract_all(img_path)
             teeth.img_show()
 
             # 根据提取的牙齿进行评分

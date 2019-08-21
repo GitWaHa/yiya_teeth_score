@@ -29,7 +29,7 @@ class YOLO(object):
         work_floder + 'teeth_score/Yolo3/model_data/yolo_anchors.txt',
         "classes_path":
         work_floder + 'teeth_score/Yolo3/model_data/yolo_classes.txt',
-        "score": 0.2,
+        "score": 0.1,
         "iou": 0.45,
         "model_image_size": (416, 416),
         "gpu_num": 0,

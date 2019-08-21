@@ -49,108 +49,48 @@ class Teeth_Grade():
         self.bb4.clear()
         self.grade = 0
 
-    def score_aa1(self, dst_all_mark, dst_fill_mark, site, radius,
-                  fillteeth_num):
+    def score_aa1(self, neighbor_flag, fillteeth_num):
         key_elements_score = self.aa1.CONTAINS_NEIGHBOR_SCORE
 
-        src_row, src_col = dst_all_mark.shape[:2]
-
-        # 坐标转换
-        min_row = int(my_limit(site[0] - radius, 0, src_row))
-        max_row = int(my_limit(site[0] + radius, 0, src_row))
-        min_col = int(my_limit(site[1] - radius, 0, src_col))
-        max_col = int(my_limit(site[1] + radius, 0, src_col))
-
-        # 区域可视化
-        # roi = dst_all_mark[min_row:max_row, min_col:max_col]
-        # cv2.imshow("aa1_roi", roi)
-        img, contours, hierarchy = cv2.findContours(dst_fill_mark.copy(),
-                                                    cv2.RETR_EXTERNAL,
-                                                    cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
-            col, row, w, h = cv2.boundingRect(maxcnt)
-
-        roi_height = max_row - min_row
-        roi_width = max_col - min_col
-
-        # 统计患牙坐标周围第一列和最后一列白点数
-        left_tooth_point_num = np.sum(dst_all_mark[0:src_row, min_col] == 255)
-        right_tooth_point_num = np.sum(dst_all_mark[0:src_row, max_col -
-                                                    1] == 255)
-
-        # 参照牙存在情况:1-有牙 2-不完整 3-最里侧
-        # 认为一侧白点超过一定数量,并且原始图像感兴趣区域左侧/右侧还有较大空间,则这一侧有牙
-        if left_tooth_point_num > roi_height * self.aa1.THR_HEIGHT:
-            if col <= 10:
-                left_tooth_status = 3
-                if self.print_flag == 1:
-                    print('AA1[INFO] 左侧无牙')
-            elif min_col > roi_width * 0.4 * self.aa1.THR_WIDTH:
-                left_tooth_status = 1
-                if self.print_flag == 1:
-                    print('AA1[INFO] 左侧有牙')
-                self.aa1.neighbor_num += 1
-            else:
-                left_tooth_status = 2
-                if self.print_flag == 1:
-                    print('AA1[INFO] 左侧有牙，不完整,扣3分')
-                key_elements_score -= 3  # 左侧无参照,扣3分
-        else:
-            left_tooth_status = 3
-            if self.print_flag == 1:
-                print('AA1[INFO] 左侧无牙')
-
-        if right_tooth_point_num > roi_height * self.aa1.THR_HEIGHT:
-            if (col + w) >= (src_col - 10):
-                right_tooth_status = 3
-                if self.print_flag == 1:
-                    print('AA1[INFO] 右侧无牙')
-            elif src_col - max_col > roi_width * 0.4 * self.aa1.THR_WIDTH:
-                right_tooth_status = 1
-                if self.print_flag == 1:
-                    print('AA1[INFO] 右侧有牙')
-                self.aa1.neighbor_num += 1
-            else:
-                right_tooth_status = 2
-                if self.print_flag == 1:
-                    print('AA1[INFO] 右侧有牙，不完整,扣3分')
-                key_elements_score -= 3  # 右侧无参照,扣3分
-        else:
-            right_tooth_status = 3
-            if self.print_flag == 1:
-                print('AA1[INFO] 右侧无牙')
-
-        if left_tooth_status == 3 and right_tooth_status == 3:
-            key_elements_score = 1  # 左右都无参照牙齿
-            if self.print_flag == 1:
-                print('AA1[INFO] 左右都无参照牙齿,0分')
-        elif (left_tooth_status == 3 and right_tooth_status == 2) or \
-             (left_tooth_status == 2 and right_tooth_status == 3):
-            key_elements_score = 1  # 只有单侧牙，且不完整
-            if self.print_flag == 1:
-                print('AA1[INFO] 只有单侧牙，且不完整,1分')
-
-        if fillteeth_num == '7' and self.aa1.neighbor_num >= 1:
+        if fillteeth_num == '7' and neighbor_flag > 0:
             self.aa1.contains_neighbor = self.aa1.CONTAINS_NEIGHBOR_SCORE
+            self.aa1.neighbor_num = 1
+            if self.print_flag == 1:
+                print('AA1[INFO]：7号牙，有一颗邻牙')
+        elif neighbor_flag == 3:
+            self.aa1.contains_neighbor = self.aa1.CONTAINS_NEIGHBOR_SCORE
+            self.aa1.neighbor_num = 2
+            if self.print_flag == 1:
+                print('AA1[INFO]：有两颗邻牙')
+        elif neighbor_flag == 0:
+            self.aa1.contains_neighbor = 0
+            self.aa1.neighbor_num = 0
+            if self.print_flag == 1:
+                print('AA1[INFO]：无邻牙')
         else:
-            self.aa1.contains_neighbor = key_elements_score
+            self.aa1.contains_neighbor = 4
+            self.aa1.neighbor_num = 1
+            if self.print_flag == 1:
+                print('AA1[INFO]：非7号牙，无邻牙')
+
         self.aa1.undefined = 3  # 直接给3分
         self.aa1.sum()
         return 1
 
-    def score_aa2(self, dst_all_mark, dst_fill_mark, site, operation_time,
+    def score_aa2(self, dst_all_mark, fill_rect, operation_time,
                   fillteeth_num):
         img_row, img_col = dst_all_mark.shape[:2]
         if self.print_flag == 1:
             print('AA2[INFO]：图片大小', img_row, img_col)
         img_center_row = img_row / 2
         img_center_col = img_col / 2
+        fill_cetter_row = (fill_rect[1] + fill_rect[3]) / 2
+        fill_cetter_col = (fill_rect[0] + fill_rect[2]) / 2
 
         # 中心位置偏差评分
         # 患牙与图片中心点距离
-        distance = math.sqrt((img_center_row - float(site[0]))**2 +
-                             (img_center_col - float(site[1]))**2)
+        distance = math.sqrt((img_center_row - fill_cetter_row)**2 +
+                             (img_center_col - fill_cetter_col)**2)
 
         # 距离占x的比例
         ratio = distance / math.sqrt(img_col**2 + img_row**2)
@@ -182,39 +122,30 @@ class Teeth_Grade():
             self.aa2.center_bias = center_point_scores
 
         # 面积大小占比评分
-        # 标记滤波,查找最大外轮廓
-        _, contours, hierarchy = cv2.findContours(dst_fill_mark.copy(),
-                                                  cv2.RETR_EXTERNAL,
-                                                  cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
-            col, row, w, h = cv2.boundingRect(maxcnt)
-            area_fill = w * h
-            # area_fill = cv2.contourArea(maxcnt)
+        pic_area = img_row * img_col  # 图片整体面积
+        area_fill = (fill_rect[3] - fill_rect[1]) * (fill_rect[2] -
+                                                     fill_rect[0])
+        area_ratio = area_fill * (self.aa1.neighbor_num + 1) / pic_area  # 面积比例
+        if self.print_flag == 1:
+            print('AA2[INFO] 面积占比', area_ratio)
 
-            pic_area = img_row * img_col  # 图片整体面积
-            area_ratio = area_fill * (self.aa1.neighbor_num +
-                                      1) / pic_area  # 面积比例
-            if self.print_flag == 1:
-                print('AA2[INFO] 面积占比', area_ratio)
+        if self.aa2.AREA_RATIO_SUBTRACT_START_MIN <= area_ratio <= self.aa2.AREA_RATIO_SUBTRACT_START_MAX:
+            ratio_diff = 0
+        elif area_ratio < self.aa2.AREA_RATIO_SUBTRACT_START_MIN:
+            ratio_diff = self.aa2.AREA_RATIO_SUBTRACT_START_MIN - area_ratio
+        else:
+            ratio_diff = area_ratio - self.aa2.AREA_RATIO_SUBTRACT_START_MAX
 
-            if self.aa2.AREA_RATIO_SUBTRACT_START_MIN <= area_ratio <= self.aa2.AREA_RATIO_SUBTRACT_START_MAX:
-                ratio_diff = 0
-            elif area_ratio < self.aa2.AREA_RATIO_SUBTRACT_START_MIN:
-                ratio_diff = self.aa2.AREA_RATIO_SUBTRACT_START_MIN - area_ratio
-            else:
-                ratio_diff = area_ratio - self.aa2.AREA_RATIO_SUBTRACT_START_MAX
-
-            self.aa2.area_ratio = my_limit(
-                self.aa2.AREA_RATIO_SCORE -
-                math.ceil(ratio_diff / self.aa2.AREA_RATIO_SUBTRACT_RATIO) *
-                self.aa2.AREA_RATIO_SUBTRACT, 0,
-                self.aa2.AREA_RATIO_SCORE)  # 按比例扣分
-            # ××××××××××××××××××××××××××××× 反作用到AA1指标 ×××××××××××××××××××××××××
-            self.aa1.contains_neighbor *= my_limit(
-                ((self.aa2.area_ratio + 1) / self.aa2.AREA_RATIO_SCORE) *
-                self.aa1.AREA_K, 0, 1)
-            self.aa1.sum()
+        self.aa2.area_ratio = my_limit(
+            self.aa2.AREA_RATIO_SCORE -
+            math.ceil(ratio_diff / self.aa2.AREA_RATIO_SUBTRACT_RATIO) *
+            self.aa2.AREA_RATIO_SUBTRACT, 0,
+            self.aa2.AREA_RATIO_SCORE)  # 按比例扣分
+        # ××××××××××××××××××××××××××××× 反作用到AA1指标 ×××××××××××××××××××××××××
+        # self.aa1.contains_neighbor *= my_limit(
+        #     ((self.aa2.area_ratio + 1) / self.aa2.AREA_RATIO_SCORE) *
+        #     self.aa1.AREA_K, 0, 1)
+        # self.aa1.sum()
 
         # 提取全部牙齿轮廓，利用线性拟合一条直线用来判断角度
         _, contours, hierarchy = cv2.findContours(dst_all_mark.copy(),
@@ -312,6 +243,9 @@ class Teeth_Grade():
 
         good_bad_label = classify_bb1(rgb_img)
         # print('good_bad_label ', good_bad_label)
+        if np.sum(fillarea_img) == 0:
+            self.bb1.grade = 19
+            return
 
         self.lr_x_str = ['0', '0', '0']
         fillarea_img_copy = fillarea_img.copy()
@@ -320,10 +254,6 @@ class Teeth_Grade():
             thresh = np.mean(gray_img[fillarea_img_copy == 255]) - 40  # 灰度阈值
         else:
             thresh = np.mean(gray_img[fillarea_img_copy == 255]) - 25  # 灰度阈值
-            # thresh = np.mean(R[fillarea_img_copy == 255]) - 25
-
-        # fillarea_img_copy = my_erode_dilate(fillarea_img_copy, 0, 2, (5, 5))
-        # cv2.imshow('fillarea_img_copy', fillarea_img_copy)
 
         point_num = 0  # 黑点个数
         level_score = self.bb1.BLACK_DEPTH_SCORE  # 黑色深浅得分
@@ -343,21 +273,11 @@ class Teeth_Grade():
         black_point_show[(fillarea_img_copy == 255)
                          & (gray_img < thresh)] = 255
         # 可视化龋齿黑点
-        cv2.imshow('black_point_show', black_point_show)
+        # cv2.imshow('black_point_show', black_point_show)
         # R[fillarea_img_copy==0]=0
         # # cv2.imshow('rgb_img', rgb_img[:,:,2])
         # cv2.imshow('rgb_img2', R)
         # cv2.setMouseCallback('rgb_img2', print_value, R)
-
-        # 绘制散点图
-        # fig = plt.figure()
-        # ax = Axes3D(fig)
-        # # ax.scatter(data[label_pred==0][:,0], data[label_pred==0][:,1], data[label_pred==0][:,2], c='r', label='0')
-        # # ax.scatter(data[label_pred==1][:,0], data[label_pred==1][:,1], data[label_pred==1][:,2], c='b', label='1')
-        # # ax.set_zlabel('Z', fontdict={'size': 15, 'color': 'red'})
-        # # ax.set_ylabel('Y', fontdict={'size': 15, 'color': 'red'})
-        # # ax.set_xlabel('X', fontdict={'size': 15, 'color': 'red'})
-        # plt.show()
 
         # 计算黑色点块的数量
         img, contours, hierarchy = cv2.findContours(black_point_show.copy(),
@@ -373,7 +293,7 @@ class Teeth_Grade():
                 if black_contours_n > 1:
                     black_contours_n -= 1
 
-        cv2.imshow('black_point_show3', black_point_show)
+        # cv2.imshow('black_point_show3', black_point_show)
 
         # 计算黑色像素数量
         point_num = np.sum(black_point_show == 255)
@@ -555,9 +475,9 @@ class Teeth_Grade():
         fillarea_mark_show = bin_to_rgb(src_image, fillarea_mark)
         otherarea_mark_show = bin_to_rgb(src_image, otherarea_mark)
         oneself_around_mark_show = bin_to_rgb(src_image, oneself_around_mark)
-        cv2.imshow("fillarea_mark", fillarea_mark_show)
-        cv2.imshow("otherarea_mark", otherarea_mark_show)
-        cv2.imshow("oneself_around_mark", oneself_around_mark_show)
+        # cv2.imshow("fillarea_mark", fillarea_mark_show)
+        # cv2.imshow("otherarea_mark", otherarea_mark_show)
+        # cv2.imshow("oneself_around_mark", oneself_around_mark_show)
 
         fill_b_avr = np.mean(B[fillarea_mark != 0])
         fill_g_avr = np.mean(G[fillarea_mark != 0])
@@ -741,11 +661,9 @@ class Teeth_Grade():
         return
 
     def score_all(self, teeth_pro, use_deploy=0):
-        self.score_aa1(teeth_pro.dst_all_mark, teeth_pro.dst_fill_mark,
-                       teeth_pro.site, teeth_pro.radius,
+        self.score_aa1(teeth_pro.neighbor_flag,
                        teeth_pro.img_info.fillteeth_num)
-        is_ok = self.score_aa2(teeth_pro.dst_all_mark, teeth_pro.dst_fill_mark,
-                               teeth_pro.site,
+        is_ok = self.score_aa2(teeth_pro.dst_all_mark, teeth_pro.fill_rect,
                                teeth_pro.img_info.operation_time,
                                teeth_pro.img_info.fillteeth_num)
         if is_ok == 0:
@@ -813,8 +731,8 @@ class Teeth_Grade():
         return 1
 
     def creat_score_txt(self, img_info):
-        if os.access(os.path.join(img_info.pro_path, 'score.txt'), os.F_OK):
-            f = open(os.path.join(img_info.pro_path, 'score.txt'),
+        if os.access(os.path.join(img_info.imgfloder_path, 'score.txt'), os.F_OK):
+            f = open(os.path.join(img_info.imgfloder_path, 'score.txt'),
                      'a',
                      encoding='utf-8')
             f.write("\n")
@@ -830,7 +748,7 @@ class Teeth_Grade():
             f.write(str(self.bb4.grade) + "-" + str(self.grade))
         else:
             print("首次，需创建TXT文件")
-            f = open(os.path.join(img_info.pro_path, 'score.txt'),
+            f = open(os.path.join(img_info.imgfloder_path, 'score.txt'),
                      'w',
                      encoding='utf-8')
             f.write("0xaaee0xaaff0x55550xa5a5" + "\n")
