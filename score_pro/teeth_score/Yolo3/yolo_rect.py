@@ -25,7 +25,7 @@ def detect_img(img_path=0):
     result_score_max2min = result[index_score_max2min, :]
     final_result = rectify_class_label(result_score_max2min)
 
-    result_show(final_result, image)
+    # result_show(final_result, image)
 
     return final_result
 
@@ -60,11 +60,11 @@ def rectify_class_label(rect_data):
             score_rectify.append(score_count)
             idx_rectify.append(np.array(CLASS_ORDER[i:i + len(result_class)]))
             # print(count)
-    print(idx_rectify)
+    # print(idx_rectify)
     max_score_class = idx_rectify[np.argmax(score_rectify)]
-    print(max_score_class)
+    # print(max_score_class)
     result_rect_left2right[:, 0] = max_score_class
-    print(result_rect_left2right)
+    # print(result_rect_left2right)
     return result_rect_left2right
 
 
@@ -151,10 +151,11 @@ def result_show(rect_data, image):
                     1, (0, 255, 0), 1)
         cv2.rectangle(image_copy, (x1[i], y1[i]), (x2[i], y2[i]), 255, 1)
     cv2.imshow('result', image_copy)
+    cv2.moveWindow("result", 0, 0)
 
 
 def main():
-    test_img_path = 'D:\File\咿呀智能评分\TeethScore\JPG_TEST_History\JPG_TEST-28'
+    test_img_path = 'D:\File\咿呀智能评分\TeethScore\原始图片\平行视角'
     img_names = sorted(list(paths.list_images(test_img_path)))
     print(img_names)
     num = 0
@@ -177,6 +178,7 @@ def main():
             elif key == 27:
                 cv2.destroyAllWindows()
                 return
+
 
 if __name__ == '__main__':
     main()

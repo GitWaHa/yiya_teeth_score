@@ -660,14 +660,16 @@ class Teeth_Grade():
         self.bb4.sum()
         return
 
-    def score_all(self, teeth_pro, use_deploy=0):
+    def score_all(self, teeth_pro, patient_floder, use_deploy=0):
         self.score_aa1(teeth_pro.neighbor_flag,
                        teeth_pro.img_info.fillteeth_num)
         is_ok = self.score_aa2(teeth_pro.dst_all_mark, teeth_pro.fill_rect,
                                teeth_pro.img_info.operation_time,
                                teeth_pro.img_info.fillteeth_num)
         if is_ok == 0:
-            print("error: area is not ok")
+            print("error_1#",
+                  patient_floder + "_" + teeth_pro.img_info.operation_time,
+                  "#面积不符合要求")
             self.grade = self.aa1.grade + self.aa2.grade + self.aa3.grade
             self.grade += self.bb1.grade + self.bb2.grade + self.bb3.grade + self.bb4.grade
             self.creat_score_txt(teeth_pro.img_info)
@@ -706,8 +708,8 @@ class Teeth_Grade():
                 self.str_score2cmd[2] = str(self.aa1.grade) + " " + str(self.aa2.grade) + " " + str(self.aa3.grade) + " " + \
                                         str(self.bb1.grade) + " " + str(self.bb2.grade) + " " + str(self.bb3.grade) + " " + \
                                         str(self.bb4.grade) + " " + str(self.grade)
-                print("aabb", "#", self.str_score2cmd[0], "#",
-                      self.str_score2cmd[1], "#", self.str_score2cmd[2])
+                print("aabb", "#", patient_floder, "#", self.str_score2cmd[0],
+                      "#", self.str_score2cmd[1], "#", self.str_score2cmd[2])
 
         if self.print_flag == 1:
             self.aa1.print()
@@ -731,7 +733,8 @@ class Teeth_Grade():
         return 1
 
     def creat_score_txt(self, img_info):
-        if os.access(os.path.join(img_info.imgfloder_path, 'score.txt'), os.F_OK):
+        if os.access(os.path.join(img_info.imgfloder_path, 'score.txt'),
+                     os.F_OK):
             f = open(os.path.join(img_info.imgfloder_path, 'score.txt'),
                      'a',
                      encoding='utf-8')

@@ -36,44 +36,26 @@ class Img_info:
         self.imgfloder_path = 0
 
     def get_info(self, img_dir, use_deploy=1):
-        if use_deploy == 0:
-            pattern = r"(.*)-(.*)-(.*)-(.*)-(.*)\.(.*)"
-            info = list(re.findall(pattern, img_dir)[0])
-            self.upload_time = info[0]
-            self.patient_name = info[1]
-            self.operation_time = info[2]
-            self.fillteeth_name = info[3]
-            self.doctor_name = info[4]
-            self.img_type = info[5]
+        str_img_path = img_dir.split("/")
+        img_name = str_img_path[len(str_img_path) - 1]
+        self.imgfloder_path = '/'.join(str_img_path[0:len(str_img_path) - 2])
+        # print(self.imgfloder_path)
+        pattern = r"(.*)-(.*)-(.*)-(.*)-(.*)\.(.*)"
+        info = list(re.findall(pattern, img_name)[0])
+        self.upload_time = info[0]
+        self.patient_name = info[1]
+        self.operation_time = info[2]
+        self.fillteeth_name = info[3]
+        self.doctor_name = info[4]
+        self.img_type = info[5]
 
-            self.fillteeth_region = list(self.fillteeth_name)[0]
-            self.fillteeth_num = list(self.fillteeth_name)[1]
+        self.fillteeth_region = list(self.fillteeth_name)[0]
+        self.fillteeth_num = list(self.fillteeth_name)[1]
 
-            if self.fillteeth_num == '1' or self.fillteeth_num == '2' or self.fillteeth_num == '3':
-                self.fillteeth_type = '门牙'
-            else:
-                self.fillteeth_type = '后牙'
+        if self.fillteeth_num == '1' or self.fillteeth_num == '2' or self.fillteeth_num == '3':
+            self.fillteeth_type = '门牙'
         else:
-            str_img_path = img_dir.split("/")
-            img_name = str_img_path[len(str_img_path) - 1]
-            self.imgfloder_path = '/'.join(str_img_path[0:len(str_img_path) - 2])
-            print(self.imgfloder_path)
-            pattern = r"(.*)-(.*)-(.*)-(.*)-(.*)\.(.*)"
-            info = list(re.findall(pattern, img_name)[0])
-            self.upload_time = info[0]
-            self.patient_name = info[1]
-            self.operation_time = info[2]
-            self.fillteeth_name = info[3]
-            self.doctor_name = info[4]
-            self.img_type = info[5]
-
-            self.fillteeth_region = list(self.fillteeth_name)[0]
-            self.fillteeth_num = list(self.fillteeth_name)[1]
-
-            if self.fillteeth_num == '1' or self.fillteeth_num == '2' or self.fillteeth_num == '3':
-                self.fillteeth_type = '门牙'
-            else:
-                self.fillteeth_type = '后牙'
+            self.fillteeth_type = '后牙'
 
         return
 
@@ -125,12 +107,13 @@ class Teeth:
         if len(rect_list) != 0:
             rect_list = result_resize(rect_list,
                                       np.max(self.src_image.shape[0:2]))
-            result_show(rect_list, self.src_image)
+            # result_show(rect_list, self.src_image)
 
         # 获得所补牙位置矩形框（col1,row1,col2,row2）
         self.fill_rect = self.get_fill_site(rect_list,
                                             self.img_info.fillteeth_name)
-
+        if len(self.fill_rect) == 0:
+            return 0
         # 对所补牙类型进行判断（俯视与平视），并分割所补牙
         self.img_info.fillteeth_type = self.classify_filltype(
             self.src_image.copy(), self.fill_rect)
@@ -143,11 +126,11 @@ class Teeth:
         # 针对术后，获得所补牙邻牙信息，并分割邻牙
         self.neighbor_flag, self.neighbor_rect = self.get_fillarea_info(
                 rect_list, self.img_info.fillteeth_name)
-        print(self.neighbor_flag, self.neighbor_rect)
+        # print(self.neighbor_flag, self.neighbor_rect)
         if self.img_info.operation_time == '术后':
             self.dst_other_mark = self.extract_neighbor_teeth(
                 self.src_image.copy(), self.neighbor_rect)
-        return
+        return 1
 
     # / *调整图片大小 * /
     def resize(self, set_rows, set_cols):
@@ -234,7 +217,8 @@ class Teeth:
         fill_rect = []
         class_label = np.array(rect_data[:, 0]).astype(np.str)
         arg_fill = np.where(class_label == fill_num)
-        if len(arg_fill) != 0:
+        # print(len(arg_fill[0]))
+        if len(arg_fill[0]) != 0:
             rect_fill = rect_data[arg_fill[0][0], :]
             fill_rect = rect_fill[2:].astype(np.int)
         return fill_rect
@@ -309,7 +293,7 @@ class Teeth:
             fillarea_mark[row1:row2, col1:col2] = mark_bin
             # 可视化所补区域
             fillarea = self.bin_to_rgb(fillarea_mark)
-            cv2.imshow('mark_area', fillarea)
+            # cv2.imshow('mark_area', fillarea)
 
             return fillarea_mark
 
