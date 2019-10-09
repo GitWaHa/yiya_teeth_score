@@ -107,12 +107,16 @@ class Teeth:
         if len(rect_list) != 0:
             rect_list = result_resize(rect_list,
                                       np.max(self.src_image.shape[0:2]))
-            # result_show(rect_list, self.src_image)
+            result_show(rect_list, self.src_image)
+        else:
+            self.dst_fillarea_mark = np.zeros(self.src_image.shape[:2], np.uint8)
+            return 0
 
         # 获得所补牙位置矩形框（col1,row1,col2,row2）
         self.fill_rect = self.get_fill_site(rect_list,
                                             self.img_info.fillteeth_name)
         if len(self.fill_rect) == 0:
+            self.dst_fillarea_mark = np.zeros(self.src_image.shape[:2], np.uint8)
             return 0
         # 对所补牙类型进行判断（俯视与平视），并分割所补牙
         self.img_info.fillteeth_type = self.classify_filltype(
@@ -125,7 +129,7 @@ class Teeth:
 
         # 针对术后，获得所补牙邻牙信息，并分割邻牙
         self.neighbor_flag, self.neighbor_rect = self.get_fillarea_info(
-                rect_list, self.img_info.fillteeth_name)
+            rect_list, self.img_info.fillteeth_name)
         # print(self.neighbor_flag, self.neighbor_rect)
         if self.img_info.operation_time == '术后':
             self.dst_other_mark = self.extract_neighbor_teeth(
@@ -152,7 +156,7 @@ class Teeth:
         self.dst_all_mark = np.zeros(self.src_image.shape[:2], np.uint8)
         self.dst_fill_mark = np.zeros(self.src_image.shape[:2], np.uint8)
         self.dst_other_mark = np.zeros(self.src_image.shape[:2], np.uint8)
-        self.dst_fillarea_mark = np.zeros(self.src_image.shape[:2], np.uint8)
+        # self.dst_fillarea_mark = np.zeros(self.src_image.shape[:2], np.uint8)
         return
 
     # / *分割单个患牙 * /
@@ -293,7 +297,7 @@ class Teeth:
             fillarea_mark[row1:row2, col1:col2] = mark_bin
             # 可视化所补区域
             fillarea = self.bin_to_rgb(fillarea_mark)
-            # cv2.imshow('mark_area', fillarea)
+            cv2.imshow('mark_area', fillarea)
 
             return fillarea_mark
 
@@ -306,7 +310,7 @@ class Teeth:
 
         other_teeth = self.bin_to_rgb(self.dst_other_mark)
         cv2.imshow("other_teeth", other_teeth)
-        # cv2.imshow("原图", self.src_image)
+        cv2.imshow("原图", self.src_image)
         return
 
     # / *提取照片中的全部牙齿 * /

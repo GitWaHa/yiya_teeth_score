@@ -18,7 +18,7 @@ def main():
     teeth = Teeth()
     grade = Teeth_Grade()
 
-    JPG_dir = "D:/File/咿呀智能评分/TeethScore/JPG_TEST_History/JPG_TEST20-8-13/"
+    JPG_dir = "D:/File/咿呀智能评分/TeethScore/JPG_TEST_History/first_test_112/"
     for i in range(0, len(sys.argv)):
         print("参数", i, sys.argv[i])
         if i == 1:
@@ -52,8 +52,7 @@ def main():
             img_path = current_path + "/" + img_names[j]
             # print(img_path)
             teeth.img_info.get_info(img_path)
-            if find_flag == 'find' and teeth.img_info.patient_name != (
-                    '患者' + sys.argv[2]):
+            if find_flag == 'find' and filenames[i] != (sys.argv[2]):
                 break
 
             teeth.clear()
@@ -67,7 +66,7 @@ def main():
             # 提取整个牙齿、按个所补牙及剩余牙齿
             extract_is_ok = teeth.extract_all(img_path)
             # teeth.img_info.print_info()
-            # teeth.img_show()
+            teeth.img_show()
 
             # 根据提取的牙齿进行评分
             if extract_is_ok == 1:
@@ -75,9 +74,12 @@ def main():
                                 filenames[i],
                                 use_deploy=USE_DEPLOY_FLAG)
             else:
-                if teeth.img_info.operation_time == "术后":
-                    print("error_1#", filenames[i] + "_" + time_order,
-                          "#自动标注未找到所需牙位所补牙")
+                print("error_1#",
+                      filenames[i] + "_" + teeth.img_info.operation_time,
+                      "#自动标注未找到所需牙位所补牙")
+                grade.score_all(teeth,
+                                filenames[i],
+                                use_deploy=USE_DEPLOY_FLAG)
 
         #     key = 0
         #     while key != ord("d"):

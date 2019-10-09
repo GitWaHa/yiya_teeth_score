@@ -10,7 +10,7 @@ import os
 from teeth_score.teeth import *
 from teeth_score.indicators import *
 from sklearn.externals import joblib
-from teeth_score.ResNet50.classify_bb1 import classify_bb1
+from teeth_score.ResNet50.classify_bb1 import classify_bb1, classify_bb2_bb3
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -38,6 +38,7 @@ class Teeth_Grade():
         self.print_lr_x_flag = 0
         self.lr_x_str = ['0', '0', '0']
         self.lr_flag = 1
+        self.pre_classify_flag = 1
 
     def clear(self):
         self.aa1.clear()
@@ -82,6 +83,10 @@ class Teeth_Grade():
         img_row, img_col = dst_all_mark.shape[:2]
         if self.print_flag == 1:
             print('AA2[INFO]：图片大小', img_row, img_col)
+
+        if len(fill_rect) == 0:
+            self.aa2.sum()
+            return 1
         img_center_row = img_row / 2
         img_center_col = img_col / 2
         fill_cetter_row = (fill_rect[1] + fill_rect[3]) / 2
@@ -234,15 +239,25 @@ class Teeth_Grade():
                   fillarea_img,
                   operation_time,
                   teeth_type=0,
-                  rgb_img=0):
+                  rgb_img=0,
+                  fill_rect=0):
         if operation_time == '术前':
             return
         if operation_time == '术后':
             self.bb1.grade = 20
             return
 
-        good_bad_label = classify_bb1(rgb_img)
+        # good_bad_label = classify_bb1(rgb_img)
         # print('good_bad_label ', good_bad_label)
+        if self.pre_classify_flag == 1:
+            good_bad_label = classify_bb1(rgb_img, fill_rect)
+            print('good_bad', good_bad_label)
+            if good_bad_label == 0:
+                self.bb1.grade = 19
+                return
+            elif good_bad_label == 2:
+                self.bb1.grade = 12
+                return
         if np.sum(fillarea_img) == 0:
             self.bb1.grade = 19
             return
@@ -250,6 +265,11 @@ class Teeth_Grade():
         self.lr_x_str = ['0', '0', '0']
         fillarea_img_copy = fillarea_img.copy()
         B, G, R = cv2.split(rgb_img)
+        # 若检测不到，则此次补牙不需清除龋坏，随机给固定分数
+        if np.sum(fillarea_img_copy == 255) == 0:
+            self.bb1.grade = np.random.randint(18, 20)
+            return
+
         if teeth_type == '门牙':
             thresh = np.mean(gray_img[fillarea_img_copy == 255]) - 40  # 灰度阈值
         else:
@@ -262,18 +282,13 @@ class Teeth_Grade():
 
         rows, cols = gray_img.shape[0:2]
 
-        # 若检测不到，则此次补牙不需清除龋坏，随机给固定分数
-        if np.sum(fillarea_img_copy == 255) == 0:
-            self.bb1.grade = np.random.randint(18, 20)
-            return
-
         gray_roi_img = gray_img.copy()
         gray_roi_img[fillarea_img_copy == 0] = 0
         black_point_show = np.zeros((rows, cols), dtype=np.uint8)
         black_point_show[(fillarea_img_copy == 255)
                          & (gray_img < thresh)] = 255
         # 可视化龋齿黑点
-        # cv2.imshow('black_point_show', black_point_show)
+        cv2.imshow('black_point_show', black_point_show)
         # R[fillarea_img_copy==0]=0
         # # cv2.imshow('rgb_img', rgb_img[:,:,2])
         # cv2.imshow('rgb_img2', R)
@@ -293,7 +308,7 @@ class Teeth_Grade():
                 if black_contours_n > 1:
                     black_contours_n -= 1
 
-        # cv2.imshow('black_point_show3', black_point_show)
+        cv2.imshow('black_point_show3', black_point_show)
 
         # 计算黑色像素数量
         point_num = np.sum(black_point_show == 255)
@@ -333,7 +348,7 @@ class Teeth_Grade():
         self.bb1.grade -= black_contours_n
         self.bb1.grade = my_limit(self.bb1.grade, 10, 19)
 
-        if self.lr_flag == 1:
+        if self.lr_flag == 2:
             lr1 = joblib.load(TXT_DIR + 'bb1.pkl')
             bb1x = np.array([[
                 point_num,
@@ -365,7 +380,7 @@ class Teeth_Grade():
             maxcnt = max(contours, key=lambda x: cv2.contourArea(x))
             col_f, row_f, w_f, h_f = cv2.boundingRect(maxcnt)
         else:
-            return
+            return []
         img, contours, hierarchy = cv2.findContours(fillarea_copy,
                                                     cv2.RETR_EXTERNAL,
                                                     cv2.CHAIN_APPROX_SIMPLE)
@@ -389,7 +404,7 @@ class Teeth_Grade():
         return site_k_list
 
     def score_bb3(self, src_image, fill_mark, other_mark, fillarea_mark,
-                  operation_time):
+                  operation_time, fill_rect):
         if operation_time == '术前':
             return
         elif operation_time == '术中':
@@ -397,16 +412,31 @@ class Teeth_Grade():
                 fill_mark, fillarea_mark)
             return
 
-        if self.roi_site_k_list == 0:
-            return
+        if self.pre_classify_flag == 1:
+            good_bad_label = classify_bb2_bb3(src_image, fill_rect)
+            print('good_bad', good_bad_label)
+            if good_bad_label == 0:
+                self.bb3.other_diff = np.random.randint(9, 10)
+                self.bb3.oneself_diff = np.random.randint(9, 10)
+                self.bb3.sum()
+                self.bb2.grade = 18
+                return
+            elif good_bad_label == 2:
+                self.bb3.other_diff = np.random.randint(6, 7)
+                self.bb3.oneself_diff = np.random.randint(6, 7)
+                self.bb3.sum()
+                self.bb2.grade = 14
+                return
+        # print(np.sum(fillarea_mark == 255))
 
-        if len(self.roi_site_k_list) == 0:
+        if len(self.roi_site_k_list) == 0 or np.sum(fillarea_mark == 255) == 0:
             self.bb3.other_diff = np.random.randint(9, 10)
             self.bb3.oneself_diff = np.random.randint(9, 10)
             self.bb3.sum()
             self.bb2.grade = 18
             return
 
+        # print(self.roi_site_k_list)
         hsv_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2HSV)
         img_rows, img_cols = hsv_image.shape[:2]
         H, S, V = cv2.split(hsv_image)
@@ -551,6 +581,7 @@ class Teeth_Grade():
                 abs(fill_g_avr - other_g_avr),
                 abs(fill_r_avr - other_r_avr)
             ]])
+            # print(bb3x)
             self.bb3.grade = int(lr3.predict(bb3x)[0][0])
             self.bb3.grade = my_limit(self.bb3.grade, 10, 19)
             lr2 = joblib.load(TXT_DIR + 'bb2.pkl')
@@ -672,29 +703,30 @@ class Teeth_Grade():
                   "#面积不符合要求")
             self.grade = self.aa1.grade + self.aa2.grade + self.aa3.grade
             self.grade += self.bb1.grade + self.bb2.grade + self.bb3.grade + self.bb4.grade
-            self.creat_score_txt(teeth_pro.img_info)
+            self.creat_score_txt(teeth_pro.img_info, patient_floder)
             return 0
-
+        # cv2.imshow('ff', teeth_pro.dst_fillarea_mark)
         self.score_bb1(teeth_pro.src_gray_image,
                        teeth_pro.dst_fillarea_mark,
                        teeth_pro.img_info.operation_time,
                        teeth_type=teeth_pro.img_info.fillteeth_type,
-                       rgb_img=teeth_pro.src_image)
+                       rgb_img=teeth_pro.src_image,
+                       fill_rect=teeth_pro.fill_rect)
         self.score_bb3(teeth_pro.src_image, teeth_pro.dst_fill_mark,
                        teeth_pro.dst_other_mark, teeth_pro.dst_fillarea_mark,
-                       teeth_pro.img_info.operation_time)
+                       teeth_pro.img_info.operation_time, teeth_pro.fill_rect)
         self.score_bb2(teeth_pro.dst_fill_mark,
                        teeth_pro.img_info.operation_time)
         self.score_bb4(teeth_pro.src_gray_image, teeth_pro.dst_fill_mark,
                        teeth_pro.img_info.operation_time,
                        teeth_pro.img_info.fillteeth_type,
                        teeth_pro.img_info.fillteeth_num)
-
+        self.adjust_score()
         self.grade = self.aa1.grade + self.aa2.grade + self.aa3.grade
         self.grade += self.bb1.grade + self.bb2.grade + self.bb3.grade + self.bb4.grade
 
         if use_deploy == 0:
-            self.creat_score_txt(teeth_pro.img_info)
+            self.creat_score_txt(teeth_pro.img_info, patient_floder)
         else:
             if teeth_pro.img_info.operation_time == "术前":
                 self.str_score2cmd[0] = str(self.aa1.grade) + " " + str(self.aa2.grade) + " " + str(self.aa3.grade) + " " + \
@@ -720,11 +752,11 @@ class Teeth_Grade():
             self.bb3.print()
             self.bb4.print()
         if self.print_lr_x_flag == 1 and teeth_pro.img_info.operation_time == "术后":
-            f = open(os.path.join('D:/WorkingFolder/Python/LinearRegression',
+            f = open(os.path.join('D:/Workspace/Python/LinearRegression',
                                   'lr_x.txt'),
                      'a',
                      encoding='utf-8')
-            f.write(teeth_pro.img_info.patient_name + " ")
+            f.write(patient_floder + " ")
             f.write(self.lr_x_str[0] + " ")
             f.write(self.lr_x_str[1] + " ")
             f.write(self.lr_x_str[2] + " ")
@@ -732,15 +764,21 @@ class Teeth_Grade():
             f.close()
         return 1
 
-    def creat_score_txt(self, img_info):
+    def adjust_score(self):
+        self.bb1.grade = int(self.bb1.grade / 20 * 35)
+        self.bb2.grade = int(self.bb2.grade / 20 * 10)
+        self.bb3.grade = int(self.bb3.grade / 20 * 10)
+        self.bb4.grade = int(self.bb4.grade / 10 * 15)
+
+    def creat_score_txt(self, img_info, patient_floder):
         if os.access(os.path.join(img_info.imgfloder_path, 'score.txt'),
                      os.F_OK):
             f = open(os.path.join(img_info.imgfloder_path, 'score.txt'),
                      'a',
                      encoding='utf-8')
             f.write("\n")
-            f.write(img_info.patient_name + "-" + img_info.operation_time +
-                    "-")
+            f.write(patient_floder + '-' + img_info.patient_name + "-" +
+                    img_info.operation_time + "-")
             f.write(img_info.fillteeth_type + "-" + img_info.doctor_name + "-")
             f.write(
                 str(self.aa1.grade) + "-" + str(self.aa2.grade) + "-" +
@@ -755,8 +793,8 @@ class Teeth_Grade():
                      'w',
                      encoding='utf-8')
             f.write("0xaaee0xaaff0x55550xa5a5" + "\n")
-            f.write(img_info.patient_name + "-" + img_info.operation_time +
-                    "-")
+            f.write(patient_floder + '-' + img_info.patient_name + "-" +
+                    img_info.operation_time + "-")
             f.write(img_info.fillteeth_type + "-" + img_info.doctor_name + "-")
             f.write(
                 str(self.aa1.grade) + "-" + str(self.aa2.grade) + "-" +
