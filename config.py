@@ -1,0 +1,1 @@
+WORK_FLODER = 'D:\Workspace\Python\yiya_teeth_score/'
