@@ -10,7 +10,7 @@ import cv2
 yolo = YOLO()
 
 
-def detect_img(img_path=0):
+def detect_img(img_path=None, save_path=None):
     image = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), -1)
     image = my_resize(416, 416, image)
 
@@ -23,7 +23,8 @@ def detect_img(img_path=0):
     result_score_max2min = result[index_score_max2min, :]
     final_result = rectify_class_label(result_score_max2min)
 
-    # result_show(final_result, image)
+    result_show(final_result, image, is_show=False, save_path=save_path)
+    # cv2.waitKey(0)
 
     return final_result
 
@@ -132,7 +133,7 @@ def result_resize(rect_data, set_size=480):
     return rect_data_copy
 
 
-def result_show(rect_data, image):
+def result_show(rect_data, image, is_show=True, save_path=None):
     x1 = np.array(rect_data[:, 2]).astype(np.int)
     y1 = np.array(rect_data[:, 3]).astype(np.int)
     x2 = np.array(rect_data[:, 4]).astype(np.int)
@@ -148,8 +149,13 @@ def result_show(rect_data, image):
         cv2.putText(image_copy, text, (x1[i], y2[i]), cv2.FONT_HERSHEY_PLAIN,
                     1, (0, 255, 0), 1)
         cv2.rectangle(image_copy, (x1[i], y1[i]), (x2[i], y2[i]), 255, 1)
-    cv2.imshow('result', image_copy)
-    cv2.moveWindow("result", 0, 0)
+
+    if is_show:
+        cv2.imshow('result', image_copy)
+        cv2.moveWindow("result", 0, 0)
+
+    if save_path is not None:
+        cv2.imencode('.jpg', image_copy)[1].tofile(save_path)
 
 
 def main():

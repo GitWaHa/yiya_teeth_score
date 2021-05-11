@@ -76,7 +76,7 @@ def main():
                 if extract_is_ok == 1:
                     score_is_ok = grade.score_all(teeth, output_to_txt=False)
                     if score_is_ok == 0:
-                        debig_info = "Failed to extract the specify teeth"
+                        debig_info = "The specified tooth area is too small"
                         break
                     all_score.append(grade.getScores())
                 else:

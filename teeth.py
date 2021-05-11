@@ -23,6 +23,10 @@ PointStart = [0, 0]
 
 class Img_info:
     def __init__(self):
+        self.raw_img_dir = None
+        self.img_name = None
+        self.pre_floder = None
+
         self.patient_name = 0
         self.operation_time = 0
         self.fillteeth_type = 0
@@ -37,12 +41,16 @@ class Img_info:
 
     def get_info(self, img_dir: str, use_deploy=1):
         # print(img_dir)
+        self.raw_img_dir = img_dir
         img_dir = img_dir.replace("\\", "/")
         str_img_path = img_dir.split("/")
         # print(str_img_path)
         # str_img_path = re.split('/|\\', img_dir)
         img_name = str_img_path[len(str_img_path) - 1]
+        self.img_name = img_name
+
         pre_path = str_img_path[-2]
+        self.pre_floder = pre_path
         self.imgfloder_path = '/'.join(str_img_path[0:len(str_img_path) - 2])
 
         # s = pre_path.decode('utf-8')
@@ -50,6 +58,9 @@ class Img_info:
         number = p.split(pre_path)[0]
         # print()
         pattern = r"(.*)-(.*)-(.*)-(.*)-(.*)\.(.*)"
+        if (len(re.findall(pattern, img_name)) == 0):
+            return
+
         info = list(re.findall(pattern, img_name)[0])
         self.upload_time = info[0]
         self.patient_name = number + info[1]
@@ -112,7 +123,14 @@ class Teeth:
         self.resize(TEETH_IMAGE_SET_ROW, TEETH_IMAGE_SET_ROW)
         self.extract_all_teeth()
         # yolo3检测获得各个牙齿矩形框与类别
-        rect_list = detect_img(img_path)
+        output_floder = os.path.join("./data/test/output", self.img_info.pre_floder))
+        if not os.path.exists(output_floder):
+            os.mkdir(output_floder)
+        rect_list = detect_img(img_path,
+                               save_path=os.path.join(output_floder,
+                                                      self.img_info.img_name))
+        # return
+
         if len(rect_list) != 0:
             rect_list = result_resize(rect_list,
                                       np.max(self.src_image.shape[0:2]))
