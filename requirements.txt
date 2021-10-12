@@ -28,7 +28,7 @@ mccabe==0.6.1
 mock==3.0.5
 networkx==2.3
 numpy==1.16.4
-opencv-python==3.1.0.5
+opencv-python==3.4.7.28
 Pillow==6.1.0
 pipreqs==0.4.9
 protobuf==3.9.0
