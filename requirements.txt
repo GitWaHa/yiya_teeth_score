@@ -27,7 +27,7 @@ matplotlib==3.1.1
 mccabe==0.6.1
 mock==3.0.5
 networkx==2.3
-numpy==1.16.4
+numpy==1.22.0
 opencv-python==3.1.0.5
 Pillow==6.1.0
 pipreqs==0.4.9
